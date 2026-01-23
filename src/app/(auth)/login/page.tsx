@@ -8,29 +8,35 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from "@/context/auth-context"
+import { toast } from "sonner"
 
 export default function LoginPage() {
     const { login } = useAuth()
     const [clientEmail, setClientEmail] = useState("")
+    const [clientPassword, setClientPassword] = useState("")
+
     const [providerEmail, setProviderEmail] = useState("")
+    const [providerPassword, setProviderPassword] = useState("")
 
-    const handleClientLogin = () => {
-        login({
-            name: "Juan",
-            lastname: "Pérez",
-            email: clientEmail || "cliente@ejemplo.com",
-            role: "client"
-        })
-    }
+    const [loading, setLoading] = useState(false)
 
-    const handleProviderLogin = () => {
-        login({
-            name: "María",
-            lastname: "Gómez",
-            email: providerEmail || "proveedor@ejemplo.com",
-            role: "provider",
-            businessName: "Banquetes María"
-        })
+    const handleLogin = async (email: string, pass: string) => {
+        if (!email || !pass) {
+            toast.error("Por favor completa todos los campos")
+            return
+        }
+
+        setLoading(true)
+        try {
+            await login({ email, password: pass })
+        } catch (error: any) {
+            console.error(error)
+            toast.error("Error al iniciar sesión", {
+                description: error.message || "Credenciales incorrectas"
+            })
+        } finally {
+            setLoading(false)
+        }
     }
 
     return (
@@ -66,9 +72,16 @@ export default function LoginPage() {
                                         ¿Olvidaste tu contraseña?
                                     </Link>
                                 </div>
-                                <Input id="password-client" type="password" />
+                                <Input
+                                    id="password-client"
+                                    type="password"
+                                    value={clientPassword}
+                                    onChange={(e) => setClientPassword(e.target.value)}
+                                />
                             </div>
-                            <Button className="w-full" onClick={handleClientLogin}>Iniciar Sesión</Button>
+                            <Button className="w-full" disabled={loading} onClick={() => handleLogin(clientEmail, clientPassword)}>
+                                {loading ? "Iniciando..." : "Iniciar Sesión"}
+                            </Button>
                         </div>
                     </TabsContent>
                     <TabsContent value="provider">
@@ -90,9 +103,16 @@ export default function LoginPage() {
                                         ¿Olvidaste tu contraseña?
                                     </Link>
                                 </div>
-                                <Input id="password-provider" type="password" />
+                                <Input
+                                    id="password-provider"
+                                    type="password"
+                                    value={providerPassword}
+                                    onChange={(e) => setProviderPassword(e.target.value)}
+                                />
                             </div>
-                            <Button className="w-full" onClick={handleProviderLogin}>Iniciar Sesión</Button>
+                            <Button className="w-full" disabled={loading} onClick={() => handleLogin(providerEmail, providerPassword)}>
+                                {loading ? "Iniciando..." : "Iniciar Sesión"}
+                            </Button>
                         </div>
                     </TabsContent>
                 </div>

@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react"
 import { useAuth } from "./auth-context"
+import { createClient } from "@/lib/supabase/client"
 
 export type Service = {
     id: string
@@ -23,12 +24,15 @@ export type Service = {
 
 type ProviderContextType = {
     services: Service[]
-    addService: (service: Omit<Service, "id" | "providerId">) => void
-    deleteService: (id: string) => void
+    addService: (service: Omit<Service, "id" | "providerId">) => Promise<void>
+    updateService: (id: string, updates: Partial<Service>) => Promise<void>
+    deleteService: (id: string) => Promise<void>
     getMyServices: () => Service[]
     getAllServices: () => Service[]
     bookings: Booking[]
-    updateBookingStatus: (id: string, status: Booking["status"]) => void
+    updateBookingStatus: (id: string, status: Booking["status"], proposedDate?: Date) => Promise<void>
+    isLoading: boolean
+    user: any
 }
 
 export type Booking = {
@@ -39,10 +43,11 @@ export type Booking = {
     clientName: string
     date: string
     time: string
-    status: "pending" | "confirmed" | "rejected" | "completed"
+    status: "pending" | "confirmed" | "rejected" | "completed" | "rescheduled"
     amount: number
     guests: number
     specifications?: string
+    proposedDate?: string
 }
 
 const MOCK_BOOKINGS: Booking[] = [
@@ -91,67 +96,158 @@ const ProviderContext = createContext<ProviderContextType | undefined>(undefined
 export function ProviderProvider({ children }: { children: React.ReactNode }) {
     const { user } = useAuth()
     const [services, setServices] = useState<Service[]>([])
-    const [bookings, setBookings] = useState<Booking[]>(MOCK_BOOKINGS)
+    const [bookings, setBookings] = useState<Booking[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+    const supabase = createClient()
 
-    const updateBookingStatus = (id: string, status: Booking["status"]) => {
-        setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b))
+    const fetchServices = async () => {
+        console.log("Fetching services (lite)...")
+        // Select all fields except heavy images/gallery for the main list to improve performance
+        const { data, error } = await supabase
+            .from('services')
+            .select('id, provider_id, title, description, category, price, location, type, rating, reviews, verified')
+
+        if (error) {
+            console.error("Error fetching services:", error)
+        }
+        if (data) {
+            console.log("Services fetched:", data.length)
+            // Map DB fields to Service type (snake_case to camelCase)
+            const mappedServices = data.map((s: any) => ({
+                ...s,
+                providerId: s.provider_id,
+                // Ensure other fields match if DB columns differ from Service type
+            }))
+            setServices(mappedServices)
+        }
     }
 
+    const fetchBookings = async () => {
+        if (!user || user.role !== 'provider') return
+
+        const { data, error } = await supabase
+            .from('bookings')
+            .select(`
+                *,
+                profiles:user_id (full_name),
+                services:service_id (title)
+            `)
+            .eq('provider_id', user.id) // Assuming user.id is the UUID
+
+        if (data) {
+            const mappedBookings: Booking[] = data.map((b: any) => ({
+                id: b.id,
+                serviceId: b.service_id,
+                serviceName: b.services?.title || 'Unknown Service',
+                clientId: b.user_id,
+                clientName: b.profiles?.full_name || 'Unknown Client',
+                date: b.date,
+                time: b.time,
+                status: b.status,
+                amount: b.price || 0,
+                guests: b.guests,
+                specifications: b.specifications,
+                proposedDate: b.proposed_date
+            }))
+            setBookings(mappedBookings)
+        }
+    }
+
+    const updateBookingStatus = async (id: string, status: Booking["status"], proposedDate?: Date) => {
+        const updateData: any = { status }
+        if (proposedDate) {
+            updateData.proposed_date = proposedDate.toISOString().split('T')[0] // formatting as YYYY-MM-DD
+        }
+
+        const { error } = await supabase.from('bookings').update(updateData).eq('id', id)
+
+        if (!error) {
+            // Optimistic update
+            setBookings(prev => prev.map(b => b.id === id ? { ...b, status, proposedDate: updateData.proposed_date } : b))
+        } else {
+            console.error("Error updating booking:", error)
+        }
+    }
 
     useEffect(() => {
-        // Load services from localStorage
-        const storedServices = localStorage.getItem("mock_provider_services")
-        if (storedServices) {
-            setServices(JSON.parse(storedServices))
-        } else {
-            // Initialize with mock data from lib/data if empty
-            // We need to map the static data to our Service type
-            // Importing distinct initially to avoid SSR mismatch issues, but for now client-side load is fine
-            const initialData = require("@/lib/data").services.map((s: any) => ({
-                id: s.id,
-                providerId: "system", // default provider
-                title: s.title,
-                category: s.category, // ensuring category maps correctly
-                description: `Servicio profesional de ${s.title} ubicado en ${s.location}.`,
-                price: s.price,
-                location: s.location, // mapping location
-                type: "service",
-                image: s.image,
-                gallery: [s.image, s.image, s.image], // mock gallery
-                rating: s.rating,
-                reviews: s.reviews,
-                verified: s.verified
-            }))
-            setServices(initialData)
-            localStorage.setItem("mock_provider_services", JSON.stringify(initialData))
-        }
+        fetchServices()
     }, [])
 
-
     useEffect(() => {
-        localStorage.setItem("mock_provider_services", JSON.stringify(services))
-    }, [services])
+        if (user) {
+            fetchBookings()
 
-    const addService = (newServiceData: Omit<Service, "id" | "providerId">) => {
+            // Realtime subscription
+            const channel = supabase
+                .channel('provider-bookings')
+                .on('postgres_changes', {
+                    event: '*',
+                    schema: 'public',
+                    table: 'bookings',
+                    filter: `provider_id=eq.${user.id}`
+                }, (payload) => {
+                    fetchBookings() // Refresh on change
+                })
+                .subscribe()
+
+            return () => {
+                supabase.removeChannel(channel)
+            }
+        }
+    }, [user])
+
+
+
+    const addService = async (newServiceData: Omit<Service, "id" | "providerId">) => {
         if (!user) return
 
-        const newService: Service = {
+        const { data, error } = await supabase.from('services').insert({
             ...newServiceData,
-            id: Math.random().toString(36).substr(2, 9),
-            providerId: user.email, // Using email as ID for this mock
-        }
+            provider_id: user.id
+        }).select().single()
 
-        setServices((prev) => [...prev, newService])
+        if (data && !error) {
+            const newService: Service = {
+                ...data,
+                providerId: data.provider_id
+            }
+            setServices((prev) => [...prev, newService])
+        }
     }
 
-    const deleteService = (id: string) => {
-        setServices((prev) => prev.filter((s) => s.id !== id))
+    const deleteService = async (id: string) => {
+        const { error } = await supabase.from('services').delete().eq('id', id)
+        if (!error) {
+            setServices((prev) => prev.filter((s) => s.id !== id))
+        }
+    }
+
+    const updateService = async (id: string, updates: Partial<Service>) => {
+        // Prepare updates for DB (exclude non-DB fields if any, or map them)
+        const dbUpdates: any = { ...updates }
+        delete dbUpdates.id
+        delete dbUpdates.providerId
+
+        // Map camelCase to snake_case if needed (e.g. providerId -> provider_id)
+        if (updates.providerId) dbUpdates.provider_id = updates.providerId
+
+        const { error } = await supabase
+            .from('services')
+            .update(dbUpdates)
+            .eq('id', id)
+
+        if (!error) {
+            setServices(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s))
+        } else {
+            throw error
+        }
     }
 
     const getMyServices = () => {
         if (!user) return []
-        return services.filter((s) => s.providerId === user.email)
+        return services.filter((s) => s.providerId === user.id)
     }
+
 
     const getAllServices = () => {
         return services
@@ -162,11 +258,14 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
             value={{
                 services,
                 addService,
+                updateService,
                 deleteService,
                 getMyServices,
                 getAllServices,
                 bookings,
-                updateBookingStatus
+                updateBookingStatus,
+                isLoading,
+                user: useAuth().user
             }}
         >
             {children}

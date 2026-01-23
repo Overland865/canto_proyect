@@ -8,15 +8,19 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Link from "next/link"
 import { ChevronLeft, Upload, Loader2, X } from "lucide-react"
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect, use } from "react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
-import { fetchAPI } from "@/lib/api"
+import { useProvider } from "@/context/provider-context"
 
-export default function NewServicePage() {
+// Next.js 15+ Params type handling
+type Params = Promise<{ id: string }>
+
+export default function EditServicePage(props: { params: Params }) {
+    const params = use(props.params)
     const [isLoading, setIsLoading] = useState(false)
     const router = useRouter()
-    // const { addService } = useProvider() // Removed in favor of direct API call
+    const { getMyServices, updateService } = useProvider()
 
     // Form State
     const [title, setTitle] = useState("")
@@ -26,8 +30,42 @@ export default function NewServicePage() {
     const [description, setDescription] = useState("")
     const [location, setLocation] = useState("")
     const [images, setImages] = useState<string[]>([])
+    const [isFetching, setIsFetching] = useState(true)
 
     const fileInputRef = useRef<HTMLInputElement>(null)
+
+    useEffect(() => {
+        const loadService = () => {
+            const services = getMyServices()
+            const serviceToEdit = services.find(s => s.id === params.id)
+
+            if (serviceToEdit) {
+                setTitle(serviceToEdit.title)
+                setCategory(serviceToEdit.category)
+                setType(serviceToEdit.type)
+                setPrice(serviceToEdit.price.toString())
+                setDescription(serviceToEdit.description)
+                setLocation(serviceToEdit.location)
+                if (serviceToEdit.image) {
+                    setImages(serviceToEdit.gallery && serviceToEdit.gallery.length > 0 ? serviceToEdit.gallery : [serviceToEdit.image])
+                }
+                setIsFetching(false)
+            } else if (services.length > 0) {
+                // Services loaded but id not found
+                toast.error("Servicio no encontrado")
+                router.push("/dashboard/provider/services")
+            }
+            // If services.length === 0, contexts might be loading, wait a bit or rely on context isLoading 
+            // For now simple check:
+            if (services.length > 0 && !serviceToEdit) {
+                setIsFetching(false)
+            }
+        }
+
+        loadService()
+        // Retry logic specifically if context is slow could be better handled by context.isLoading
+    }, [params.id, getMyServices])
+
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files
@@ -51,7 +89,7 @@ export default function NewServicePage() {
         setIsLoading(true)
 
         try {
-            const payload = {
+            const updates = {
                 title,
                 category,
                 type,
@@ -62,24 +100,25 @@ export default function NewServicePage() {
                 gallery: images,
             }
 
-            await fetchAPI('/services', {
-                method: 'POST',
-                body: JSON.stringify(payload)
-            })
+            await updateService(params.id, updates)
 
-            toast.success("Servicio Creado", {
-                description: "Tu servicio ha sido publicado correctamente en el catálogo.",
+            toast.success("Servicio Actualizado", {
+                description: "Los cambios se han guardado correctamente.",
             })
 
             router.push("/dashboard/provider/services")
         } catch (error: any) {
             console.error(error)
-            toast.error("Error al crear servicio", {
+            toast.error("Error al actualizar", {
                 description: error.message || "Inténtalo de nuevo.",
             })
         } finally {
             setIsLoading(false)
         }
+    }
+
+    if (isFetching && getMyServices().length === 0) {
+        return <div className="p-10 text-center">Cargando datos del servicio...</div>
     }
 
     return (
@@ -91,8 +130,8 @@ export default function NewServicePage() {
                     </Button>
                 </Link>
                 <div>
-                    <h2 className="text-2xl font-bold tracking-tight">Nuevo Servicio</h2>
-                    <p className="text-muted-foreground">Publica un nuevo servicio o paquete.</p>
+                    <h2 className="text-2xl font-bold tracking-tight">Editar Servicio</h2>
+                    <p className="text-muted-foreground">Modifica los detalles de tu publicación.</p>
                 </div>
             </div>
 
@@ -101,7 +140,7 @@ export default function NewServicePage() {
                     <CardHeader>
                         <CardTitle>Detalles del Servicio</CardTitle>
                         <CardDescription>
-                            Proporciona la información completa para que los clientes sepan qué ofreces.
+                            Actualiza la información de tu servicio.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
@@ -119,7 +158,7 @@ export default function NewServicePage() {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="category">Categoría</Label>
-                                <Select required onValueChange={setCategory}>
+                                <Select required onValueChange={setCategory} value={category}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Seleccionar..." />
                                     </SelectTrigger>
@@ -134,7 +173,7 @@ export default function NewServicePage() {
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="type">Tipo de Publicación</Label>
-                                <Select defaultValue="service" onValueChange={(v: "service" | "package") => setType(v)}>
+                                <Select value={type} onValueChange={(v: "service" | "package") => setType(v)}>
                                     <SelectTrigger>
                                         <SelectValue />
                                     </SelectTrigger>
@@ -160,7 +199,6 @@ export default function NewServicePage() {
                                     onChange={(e) => setPrice(e.target.value)}
                                 />
                             </div>
-                            <p className="text-[0.8rem] text-muted-foreground">El precio inicial que se mostrará.</p>
                         </div>
 
                         <div className="space-y-2">
@@ -182,7 +220,7 @@ export default function NewServicePage() {
                                 onClick={() => fileInputRef.current?.click()}
                             >
                                 <Upload className="h-8 w-8 text-muted-foreground mb-4" />
-                                <p className="font-semibold">Click para subir imágenes</p>
+                                <p className="font-semibold">Click para subir imágenes nuevas</p>
                                 <p className="text-sm text-muted-foreground">o arrastra y suelta aquí</p>
                                 <input
                                     type="file"
@@ -228,7 +266,7 @@ export default function NewServicePage() {
                         </Link>
                         <Button type="submit" disabled={isLoading}>
                             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Publicar Servicio
+                            Guardar Cambios
                         </Button>
                     </CardFooter>
                 </Card>

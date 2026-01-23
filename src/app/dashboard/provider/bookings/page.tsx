@@ -33,6 +33,8 @@ export default function BookingsPage() {
     const [isDetailsOpen, setIsDetailsOpen] = useState(false)
     const [showCalendar, setShowCalendar] = useState(false)
     const [date, setDate] = useState<Date | undefined>(new Date())
+    const [isRescheduling, setIsRescheduling] = useState(false)
+    const [proposedDate, setProposedDate] = useState<Date | undefined>(undefined)
 
     const handleStatusChange = (id: string, newStatus: Booking["status"]) => {
         updateBookingStatus(id, newStatus)
@@ -41,6 +43,8 @@ export default function BookingsPage() {
     const openDetails = (booking: Booking) => {
         setSelectedBooking(booking)
         setIsDetailsOpen(true)
+        setIsRescheduling(false)
+        setProposedDate(undefined)
     }
 
     // Filter mainly pending/confirmed for this view or sort by date? 
@@ -285,18 +289,46 @@ export default function BookingsPage() {
                         </div>
                     )}
                     <DialogFooter>
-                        {selectedBooking?.status === 'pending' ? (
-                            <div className="flex gap-2 w-full justify-end">
-                                <Button variant="outline" onClick={() => {
-                                    if (selectedBooking) handleStatusChange(selectedBooking.id, 'rejected')
-                                    setIsDetailsOpen(false)
-                                }}>Rechazar</Button>
-                                <Button onClick={() => {
-                                    if (selectedBooking) handleStatusChange(selectedBooking.id, 'confirmed')
-                                    setIsDetailsOpen(false)
-                                }}>Aprobar Solicitud</Button>
+                        {selectedBooking?.status === 'pending' && !isRescheduling && (
+                            <div className="flex gap-2 w-full justify-between">
+                                <Button variant="ghost" onClick={() => setIsRescheduling(true)}>Reprogramar</Button>
+                                <div className="flex gap-2">
+                                    <Button variant="outline" onClick={() => {
+                                        if (selectedBooking) handleStatusChange(selectedBooking.id, 'rejected')
+                                        setIsDetailsOpen(false)
+                                    }}>Rechazar</Button>
+                                    <Button onClick={() => {
+                                        if (selectedBooking) handleStatusChange(selectedBooking.id, 'confirmed')
+                                        setIsDetailsOpen(false)
+                                    }}>Aprobar Solicitud</Button>
+                                </div>
                             </div>
-                        ) : (
+                        )}
+                        {isRescheduling && (
+                            <div className="w-full space-y-4">
+                                <div className="p-4 border rounded-md">
+                                    <h4 className="mb-2 font-medium">Selecciona una nueva fecha:</h4>
+                                    <div className="flex justify-center">
+                                        <Calendar
+                                            mode="single"
+                                            selected={proposedDate}
+                                            onSelect={setProposedDate}
+                                            initialFocus
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex justify-end gap-2">
+                                    <Button variant="ghost" onClick={() => setIsRescheduling(false)}>Cancelar</Button>
+                                    <Button disabled={!proposedDate} onClick={() => {
+                                        if (selectedBooking && proposedDate) {
+                                            updateBookingStatus(selectedBooking.id, 'rescheduled', proposedDate)
+                                            setIsDetailsOpen(false)
+                                        }
+                                    }}>Enviar Propuesta</Button>
+                                </div>
+                            </div>
+                        )}
+                        {selectedBooking?.status !== 'pending' && (
                             <Button onClick={() => setIsDetailsOpen(false)}>Cerrar</Button>
                         )}
                     </DialogFooter>

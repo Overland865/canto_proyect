@@ -21,12 +21,7 @@ export default function ProviderDashboardLayout({
         },
         {
             title: "Mis Servicios",
-            href: "/dashboard/provider/services", // Assuming this might be the list view, or we keep using the overview for now. Let's point to a specific list if needed, or just redirect to overview if not ready.
-            // Actually, based on existing structure, services management might be part of the main page or a subpath. 
-            // Let's create a placeholder page later if needed, but for now map it to valid routes.
-            // The user's existing page has a list, so maybe /dashboard/provider is fine, or we make a dedicated list page. 
-            // Let's stick to the plan: "Implement Service Management".
-            href: "/dashboard/provider", // Temporary pointing to dashboard until list page is explicit
+            href: "/dashboard/provider/services",
             icon: Package
         },
         {

@@ -11,20 +11,33 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Calendar as CalendarIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/context/auth-context"
+import { createClient } from "@/lib/supabase/client"
 
 interface ServiceBookingCardProps {
     price: number
     unit?: string
     category: string
+    serviceId: string
+    providerId: string
+    serviceName: string
 }
 
-export function ServiceBookingCard({ price, unit, category }: ServiceBookingCardProps) {
+export function ServiceBookingCard({ price, unit, category, serviceId, providerId, serviceName }: ServiceBookingCardProps) {
+    const { user } = useAuth()
+    const supabase = createClient()
     const [date, setDate] = useState<Date>()
     const [address, setAddress] = useState("")
 
     const isLocal = category === "Locales" || category === "Salones"
 
-    const handleQuote = () => {
+    const handleQuote = async () => {
+        if (!user) {
+            alert("Necesitas iniciar sesión para reservar.")
+            // Redirect to login could be added here
+            return
+        }
+
         if (!date) {
             alert("Por favor selecciona una fecha")
             return
@@ -33,7 +46,27 @@ export function ServiceBookingCard({ price, unit, category }: ServiceBookingCard
             alert("Por favor ingresa la dirección del evento")
             return
         }
-        alert("Cotización solicitada con éxito")
+
+        const { error } = await supabase.from('bookings').insert({
+            user_id: user.id,
+            provider_id: providerId,
+            service_id: serviceId,
+            date: date.toISOString().split('T')[0], // YYYY-MM-DD
+            time: "14:00 - 22:00", // Default or user selected
+            status: 'pending',
+            price: price,
+            guests: 100, // Default for now
+            specifications: address ? `Dirección: ${address}` : "Sin especificaciones"
+        })
+
+        if (error) {
+            console.error(error)
+            alert("Error al solicitar la cotización: " + error.message)
+        } else {
+            alert("Cotización solicitada con éxito. El proveedor revisará tu fecha.")
+            setAddress("")
+            setDate(undefined)
+        }
     }
 
     return (

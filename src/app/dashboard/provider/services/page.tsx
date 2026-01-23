@@ -4,12 +4,13 @@ import Link from "next/link"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Search, Filter } from "lucide-react"
+import { Plus, Search, Filter, Package } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { useProvider } from "@/context/provider-context"
+import { useAuth } from "@/context/auth-context"
 
 export default function ServicesPage() {
-    const { getMyServices } = useProvider()
+    const { getMyServices, deleteService } = useProvider()
     const myServices = getMyServices()
 
     return (
@@ -26,6 +27,8 @@ export default function ServicesPage() {
                     </Button>
                 </Link>
             </div>
+
+            {/* Filters and Search - Visual Only for now */}
 
             {/* Filters and Search - Visual Only for now */}
             <div className="flex gap-4">
@@ -56,7 +59,7 @@ export default function ServicesPage() {
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {myServices.map((service) => (
                         <Card key={service.id} className="overflow-hidden flex flex-col hover:shadow-md transition-shadow">
-                            <div className="aspect-video w-full bg-muted relative">
+                            <div className="h-48 w-full bg-muted relative">
                                 {service.image ? (
                                     <img src={service.image} alt={service.title} className="w-full h-full object-cover" />
                                 ) : (
@@ -81,8 +84,19 @@ export default function ServicesPage() {
                                 </div>
                             </CardContent>
                             <CardFooter className="mt-auto border-t bg-slate-50/50 p-4 flex gap-2">
-                                <Button variant="outline" className="flex-1">Editar</Button>
-                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                                <Link href={`/dashboard/provider/services/${service.id}`} className="flex-1">
+                                    <Button variant="outline" className="w-full">Editar</Button>
+                                </Link>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    onClick={() => {
+                                        if (confirm('¿Estás seguro de eliminar este servicio?')) {
+                                            deleteService(service.id)
+                                        }
+                                    }}
+                                >
                                     <span className="sr-only">Eliminar</span>
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"

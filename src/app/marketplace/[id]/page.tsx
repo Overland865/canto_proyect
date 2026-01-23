@@ -132,6 +132,9 @@ export default function ServiceDetailPage() {
                         price={service.price}
                         unit={service.unit}
                         category={service.category}
+                        serviceId={service.id}
+                        providerId={service.providerId}
+                        serviceName={service.title}
                     />
                 </div>
             </div>

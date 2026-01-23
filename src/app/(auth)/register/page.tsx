@@ -11,6 +11,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/context/auth-context"
 
+import { toast } from "sonner"
+
 const REGIONS = [
     "CDMX",
     "Estado de México",
@@ -24,37 +26,72 @@ const REGIONS = [
 
 export default function RegisterPage() {
     const { register } = useAuth()
+    const [loading, setLoading] = useState(false)
 
     // Client State
     const [clientName, setClientName] = useState("")
     const [clientLastname, setClientLastname] = useState("")
     const [clientEmail, setClientEmail] = useState("")
+    const [clientPassword, setClientPassword] = useState("")
     const [clientRegion, setClientRegion] = useState("")
 
     // Provider State
     const [businessName, setBusinessName] = useState("")
     const [providerEmail, setProviderEmail] = useState("")
+    const [providerPassword, setProviderPassword] = useState("")
     const [providerRegion, setProviderRegion] = useState("")
 
-    const handleClientRegister = () => {
-        register({
-            name: clientName || "Nuevo",
-            lastname: clientLastname || "Usuario",
-            email: clientEmail || "nuevo@ejemplo.com",
-            role: "client",
-            region: clientRegion || "CDMX"
-        })
+    const handleClientRegister = async () => {
+        if (!clientName || !clientLastname || !clientEmail || !clientPassword || !clientRegion) {
+            toast.error("Por favor completa todos los campos")
+            return
+        }
+
+        setLoading(true)
+        try {
+            await register({
+                name: clientName,
+                lastname: clientLastname,
+                email: clientEmail,
+                password: clientPassword,
+                role: "consumer",
+                region: clientRegion
+            })
+        } catch (error: any) {
+            console.error(error)
+            toast.error("Error al registrar", {
+                description: error.message || "Inténtalo de nuevo."
+            })
+        } finally {
+            setLoading(false)
+        }
     }
 
-    const handleProviderRegister = () => {
-        register({
-            name: "Proveedor",
-            lastname: "Admin",
-            email: providerEmail || "nuevo@negocio.com",
-            role: "provider",
-            businessName: businessName || "Nuevo Negocio",
-            region: providerRegion || "CDMX"
-        })
+    const handleProviderRegister = async () => {
+        if (!businessName || !providerEmail || !providerPassword || !providerRegion) {
+            toast.error("Por favor completa todos los campos")
+            return
+        }
+
+        setLoading(true)
+        try {
+            await register({
+                name: "Proveedor", // Default placeholder or add input if needed
+                lastname: "Admin",
+                businessName,
+                email: providerEmail,
+                password: providerPassword,
+                role: "provider",
+                region: providerRegion
+            })
+        } catch (error: any) {
+            console.error(error)
+            toast.error("Error al registrar negocio", {
+                description: error.message || "Inténtalo de nuevo."
+            })
+        } finally {
+            setLoading(false)
+        }
     }
 
     return (
@@ -104,7 +141,7 @@ export default function RegisterPage() {
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="region">Región</Label>
-                            <Select onValueChange={setClientRegion} defaultValue={clientRegion}>
+                            <Select onValueChange={setClientRegion} value={clientRegion}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Selecciona tu región" />
                                 </SelectTrigger>
@@ -117,9 +154,16 @@ export default function RegisterPage() {
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="password">Contraseña</Label>
-                            <Input id="password" type="password" />
+                            <Input
+                                id="password"
+                                type="password"
+                                value={clientPassword}
+                                onChange={(e) => setClientPassword(e.target.value)}
+                            />
                         </div>
-                        <Button className="w-full" onClick={handleClientRegister}>Registrarse</Button>
+                        <Button className="w-full" disabled={loading} onClick={handleClientRegister}>
+                            {loading ? "Creando cuenta..." : "Registrarse"}
+                        </Button>
                     </TabsContent>
                     <TabsContent value="provider" className="space-y-4">
                         <div className="space-y-2">
@@ -143,7 +187,7 @@ export default function RegisterPage() {
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="region-provider">Región</Label>
-                            <Select onValueChange={setProviderRegion} defaultValue={providerRegion}>
+                            <Select onValueChange={setProviderRegion} value={providerRegion}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Selecciona tu región" />
                                 </SelectTrigger>
@@ -156,7 +200,12 @@ export default function RegisterPage() {
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="password-provider">Contraseña</Label>
-                            <Input id="password-provider" type="password" />
+                            <Input
+                                id="password-provider"
+                                type="password"
+                                value={providerPassword}
+                                onChange={(e) => setProviderPassword(e.target.value)}
+                            />
                         </div>
                         <div className="flex items-top space-x-2 pt-2">
                             <Checkbox id="terms" />
@@ -172,7 +221,9 @@ export default function RegisterPage() {
                                 </p>
                             </div>
                         </div>
-                        <Button className="w-full" onClick={handleProviderRegister}>Registrarse</Button>
+                        <Button className="w-full" disabled={loading} onClick={handleProviderRegister}>
+                            {loading ? "Creando cuenta..." : "Registrarse"}
+                        </Button>
                     </TabsContent>
                 </div>
                 <CardFooter className="flex flex-col gap-4 mt-4">

@@ -11,7 +11,7 @@ import { useAuth } from "@/context/auth-context"
 
 export default function ProviderDashboardPage() {
     const { user } = useAuth()
-    const { getMyServices } = useProvider()
+    const { getMyServices, deleteService } = useProvider()
     const myServices = getMyServices()
 
     if (!user || user.role !== "provider") {
@@ -111,8 +111,20 @@ export default function ProviderDashboardPage() {
                                 <p className="font-bold text-lg">${service.price.toLocaleString()}</p>
                             </CardContent>
                             <CardFooter className="flex justify-between">
-                                <Button variant="ghost">Editar</Button>
-                                <Button variant="outline" className="text-destructive hover:text-destructive">Eliminar</Button>
+                                <Link href={`/dashboard/provider/services/${service.id}`}>
+                                    <Button variant="ghost">Editar</Button>
+                                </Link>
+                                <Button
+                                    variant="outline"
+                                    className="text-destructive hover:text-destructive"
+                                    onClick={() => {
+                                        if (confirm('¿Estás seguro de eliminar este servicio?')) {
+                                            deleteService(service.id)
+                                        }
+                                    }}
+                                >
+                                    Eliminar
+                                </Button>
                             </CardFooter>
                         </Card>
                     ))}
