@@ -19,10 +19,11 @@ type AuthContextType = {
     user: User | null
     isAuthenticated: boolean
     login: (params: any) => Promise<void>
-    register: (params: any) => Promise<void>
+    register: (params: any) => Promise<{ needsVerification: boolean; email?: string } | void>
     logout: () => Promise<void>
     updateProfile: (userData: Partial<User>) => void
     authError: string | null
+    verifyOtp: (email: string, token: string, type: "signup" | "email") => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -190,53 +191,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (error) throw error
         if (!data.user) throw new Error("No se pudo crear el usuario")
 
+        // Store metadata for later profile creation if verifying
         if (data.user && !data.session) {
-            toast.success("Cuenta creada. Por favor verifica tu correo para iniciar sesión.")
-            router.push("/login")
-            return
+            // Email confirmation enabled.
+            // We return here to let the UI show the verification step.
+            return { needsVerification: true, email: email }
         }
 
         try {
-            // 2. Wait for Profile Creation (handled by DB trigger)
-            let profileCreated = false
-            // Poll for 5 seconds (10 attempts * 500ms)
-            for (let i = 0; i < 10; i++) {
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('id')
-                    .eq('id', data.user.id)
-                    .single()
-
-                if (profile) {
-                    profileCreated = true
-                    break
-                }
-                await new Promise(resolve => setTimeout(resolve, 500))
-            }
-
-            if (!profileCreated) {
-                console.warn("Profile not created by trigger within timeout. Attempting manual creation.")
-                // Fallback: Manual creation if trigger fails
-                await supabase
-                    .from('profiles')
-                    .upsert({
-                        id: data.user.id,
-                        email: email,
-                        full_name: fullName,
-                        role: role
-                    })
-            }
-
-            // 3. Create Provider Profile if needed
-            if (role === 'provider') {
-                const { error: providerError } = await supabase
-                    .from('provider_profiles')
-                    .insert({
-                        id: data.user.id,
-                        business_name: businessName,
-                    })
-                if (providerError) console.error("Provider profile error:", providerError)
-            }
+            await handleProfileCreation(data.user.id, email, fullName, role, businessName)
 
             toast.success("Cuenta creada exitosamente")
 
@@ -245,10 +208,85 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             } else {
                 router.push("/")
             }
+            return { needsVerification: false }
 
         } catch (dbError) {
             console.error("Database error during registration:", dbError)
-            // User is created in Auth but DB failed. 
+            // User created in Auth but DB setup failed
+        }
+    }
+
+    const verifyOtp = async (email: string, token: string, type: "signup" | "email" = "signup") => {
+        const { data, error } = await supabase.auth.verifyOtp({
+            email,
+            token,
+            type
+        })
+
+        if (error) throw error
+
+        if (data.session && data.user) {
+            // Ensure profile exists after verification
+            const fullName = data.user.user_metadata.full_name || "Usuario"
+            const role = data.user.user_metadata.role || "consumer"
+            const businessName = data.user.user_metadata.business_name // Might not be there if not passed in meta
+
+            await handleProfileCreation(data.user.id, data.user.email!, fullName, role) // businessName might need extra handling but profile usually created by trigger
+
+            toast.success("Correo verificado exitosamente")
+            if (role === 'provider') {
+                router.push("/dashboard/provider")
+            } else {
+                router.push("/")
+            }
+        }
+    }
+
+    const handleProfileCreation = async (userId: string, email: string, fullName: string, role: string, businessName?: string) => {
+        // 2. Wait for Profile Creation (handled by DB trigger)
+        let profileCreated = false
+        // Poll for 5 seconds (10 attempts * 500ms)
+        for (let i = 0; i < 10; i++) {
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('id')
+                .eq('id', userId)
+                .single()
+
+            if (profile) {
+                profileCreated = true
+                break
+            }
+            await new Promise(resolve => setTimeout(resolve, 500))
+        }
+
+        if (!profileCreated) {
+            console.warn("Profile not created by trigger within timeout. Attempting manual creation.")
+            // Fallback: Manual creation if trigger fails
+            await supabase
+                .from('profiles')
+                .upsert({
+                    id: userId,
+                    email: email,
+                    full_name: fullName,
+                    role: role
+                })
+        }
+
+        // 3. Create Provider Profile if needed
+        if (role === 'provider') {
+            // Check if already exists
+            const { data: existing } = await supabase.from('provider_profiles').select('id').eq('id', userId).single()
+
+            if (!existing) {
+                const { error: providerError } = await supabase
+                    .from('provider_profiles')
+                    .insert({
+                        id: userId,
+                        business_name: businessName || "Negocio sin nombre",
+                    })
+                if (providerError) console.error("Provider profile error:", providerError)
+            }
         }
     }
 
@@ -278,7 +316,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 register,
                 logout,
                 updateProfile,
-                authError
+                authError,
+                verifyOtp
             }}
         >
             {children}

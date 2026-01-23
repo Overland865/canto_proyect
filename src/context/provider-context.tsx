@@ -50,6 +50,66 @@ export type Booking = {
     proposedDate?: string
 }
 
+const MOCK_SERVICES: Service[] = [
+    {
+        id: "srv-1",
+        providerId: "prov-1",
+        title: "Jardín Las Rosas",
+        description: "Hermoso jardín para eventos al aire libre. Incluye carpa y servicios básicos.",
+        category: "Locales y Salones",
+        price: 15000,
+        location: "Zona Norte",
+        type: "service",
+        rating: 4.8,
+        reviews: 24,
+        verified: true,
+        image: "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?q=80&w=2070&auto=format&fit=crop"
+    },
+    {
+        id: "srv-2",
+        providerId: "prov-2",
+        title: "Banquete Premium",
+        description: "Servicio de banquete a 3 tiempos con opciones vegetarianas y servicio de meseros.",
+        category: "Banquetes",
+        price: 450,
+        unit: "pp",
+        location: "A domicilio",
+        type: "service",
+        rating: 4.9,
+        reviews: 15,
+        verified: true,
+        image: "https://images.unsplash.com/photo-1555244162-803834f70033?q=80&w=2070&auto=format&fit=crop"
+    },
+    {
+        id: "srv-3",
+        providerId: "prov-3",
+        title: "DJ & Iluminación Pro",
+        description: "Paquete completo de sonido e iluminación para fiestas de hasta 300 personas.",
+        category: "Música y Shows",
+        price: 8000,
+        location: "Toda la ciudad",
+        type: "service",
+        rating: 4.7,
+        reviews: 32,
+        verified: true,
+        image: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=2070&auto=format&fit=crop"
+    },
+    {
+        id: "srv-4",
+        providerId: "prov-4",
+        title: "Fotografía Documental",
+        description: "Cobertura completa de tu evento por 8 horas. Entrega digital en alta resolución.",
+        category: "Foto y Video",
+        price: 12000,
+        location: "Toda la ciudad",
+        type: "service",
+        rating: 5.0,
+        reviews: 8,
+        verified: false,
+        image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=1638&auto=format&fit=crop"
+    }
+]
+
 const MOCK_BOOKINGS: Booking[] = [
     {
         id: "BK-7829",

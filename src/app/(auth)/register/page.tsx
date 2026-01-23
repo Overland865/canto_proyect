@@ -25,8 +25,11 @@ const REGIONS = [
 ]
 
 export default function RegisterPage() {
-    const { register } = useAuth()
+    const { register, verifyOtp } = useAuth()
     const [loading, setLoading] = useState(false)
+    const [step, setStep] = useState<"register" | "verify">("register")
+    const [verificationEmail, setVerificationEmail] = useState("")
+    const [otp, setOtp] = useState("")
 
     // Client State
     const [clientName, setClientName] = useState("")
@@ -49,7 +52,7 @@ export default function RegisterPage() {
 
         setLoading(true)
         try {
-            await register({
+            const result = await register({
                 name: clientName,
                 lastname: clientLastname,
                 email: clientEmail,
@@ -57,6 +60,12 @@ export default function RegisterPage() {
                 role: "consumer",
                 region: clientRegion
             })
+
+            if (result && result.needsVerification) {
+                setVerificationEmail(clientEmail)
+                setStep("verify")
+                toast.success("Código enviado a tu correo")
+            }
         } catch (error: any) {
             console.error(error)
             toast.error("Error al registrar", {
@@ -75,8 +84,8 @@ export default function RegisterPage() {
 
         setLoading(true)
         try {
-            await register({
-                name: "Proveedor", // Default placeholder or add input if needed
+            const result = await register({
+                name: "Proveedor",
                 lastname: "Admin",
                 businessName,
                 email: providerEmail,
@@ -84,6 +93,12 @@ export default function RegisterPage() {
                 role: "provider",
                 region: providerRegion
             })
+
+            if (result && result.needsVerification) {
+                setVerificationEmail(providerEmail)
+                setStep("verify")
+                toast.success("Código enviado a tu correo")
+            }
         } catch (error: any) {
             console.error(error)
             toast.error("Error al registrar negocio", {
@@ -92,6 +107,58 @@ export default function RegisterPage() {
         } finally {
             setLoading(false)
         }
+    }
+
+    const handleVerify = async () => {
+        if (!otp || otp.length < 6) {
+            toast.error("Ingresa el código de 6 dígitos")
+            return
+        }
+        setLoading(true)
+        try {
+            await verifyOtp(verificationEmail, otp, "signup")
+            // verifyOtp handles redirection on success
+        } catch (error: any) {
+            console.error(error)
+            toast.error("Código inválido", {
+                description: error.message
+            })
+            setLoading(false)
+        }
+    }
+
+    if (step === "verify") {
+        return (
+            <Card className="w-full shadow-lg max-w-md mx-auto">
+                <CardHeader className="space-y-1 text-center">
+                    <CardTitle className="text-2xl font-bold">Verifica tu correo</CardTitle>
+                    <CardDescription>
+                        Ingresa el código de 6 dígitos enviado a {verificationEmail}
+                    </CardDescription>
+                </CardHeader>
+                <div className="p-6 space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="otp">Código de Verificación</Label>
+                        <Input
+                            id="otp"
+                            placeholder="123456"
+                            className="text-center text-2xl tracking-widest"
+                            maxLength={6}
+                            value={otp}
+                            onChange={(e) => setOtp(e.target.value)}
+                        />
+                    </div>
+                    <Button className="w-full" disabled={loading} onClick={handleVerify}>
+                        {loading ? "Verificando..." : "Verificar Cuenta"}
+                    </Button>
+                    <div className="text-center">
+                        <Button variant="link" className="text-sm text-muted-foreground" onClick={() => setStep("register")}>
+                            Volver al registro
+                        </Button>
+                    </div>
+                </div>
+            </Card>
+        )
     }
 
     return (

@@ -21,3 +21,10 @@ Thumbs.db
 # Archivos temporales
 tmp/
 temp/
+
+# Next.js
+.next/
+out/
+
+# Local Env
+.env.local
