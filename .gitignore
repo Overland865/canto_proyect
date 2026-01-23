@@ -21,3 +21,11 @@ Thumbs.db
 # Archivos temporales
 tmp/
 temp/
+
+# Next.js
+.next/
+out/
+build/
+dist/
+.env.local
+.vercel
