@@ -161,11 +161,11 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
     const supabase = createClient()
 
     const fetchServices = async () => {
-        console.log("Fetching services (lite)...")
-        // Select all fields except heavy images/gallery for the main list to improve performance
+        console.log("Fetching services...")
+        // Modified to select gallery as well
         const { data, error } = await supabase
             .from('services')
-            .select('id, provider_id, title, description, category, price, location, type, rating, reviews, verified')
+            .select('*') // Select all columns including gallery
 
         if (error) {
             console.error("Error fetching services:", error)
@@ -176,7 +176,7 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
             const mappedServices = data.map((s: any) => ({
                 ...s,
                 providerId: s.provider_id,
-                // Ensure other fields match if DB columns differ from Service type
+                gallery: s.gallery || [], // Ensure gallery is array
             }))
             setServices(mappedServices)
         }
@@ -261,6 +261,7 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
     const addService = async (newServiceData: Omit<Service, "id" | "providerId">) => {
         if (!user) return
 
+        // Ensure gallery is included in insert
         const { data, error } = await supabase.from('services').insert({
             ...newServiceData,
             provider_id: user.id

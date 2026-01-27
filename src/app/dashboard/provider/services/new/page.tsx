@@ -12,11 +12,15 @@ import { useState, useRef } from "react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { fetchAPI } from "@/lib/api"
+import { createClient } from "@/lib/supabase/client"
+import { useAuth } from "@/context/auth-context"
 
 export default function NewServicePage() {
     const [isLoading, setIsLoading] = useState(false)
+    const [isUploading, setIsUploading] = useState(false)
     const router = useRouter()
-    // const { addService } = useProvider() // Removed in favor of direct API call
+    const { user } = useAuth()
+    const supabase = createClient()
 
     // Form State
     const [title, setTitle] = useState("")
@@ -29,16 +33,48 @@ export default function NewServicePage() {
 
     const fileInputRef = useRef<HTMLInputElement>(null)
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files
-        if (files) {
-            Array.from(files).forEach(file => {
-                const reader = new FileReader()
-                reader.onloadend = () => {
-                    setImages(prev => [...prev, reader.result as string])
+        if (!files || files.length === 0) return
+        if (!user) {
+            toast.error("Debes iniciar sesión para subir imágenes")
+            return
+        }
+
+        setIsUploading(true)
+        const newImages: string[] = []
+
+        try {
+            for (const file of Array.from(files)) {
+                const fileExt = file.name.split('.').pop()
+                const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+
+                const { data, error } = await supabase.storage
+                    .from('service-images')
+                    .upload(fileName, file)
+
+                if (error) {
+                    throw error
                 }
-                reader.readAsDataURL(file)
+
+                const { data: { publicUrl } } = supabase.storage
+                    .from('service-images')
+                    .getPublicUrl(fileName)
+
+                newImages.push(publicUrl)
+            }
+
+            setImages(prev => [...prev, ...newImages])
+            toast.success(`${newImages.length} imagen(es) subida(s)`)
+
+        } catch (error: any) {
+            console.error(error)
+            toast.error("Error al subir imagen(es)", {
+                description: error.message
             })
+        } finally {
+            setIsUploading(false)
+            if (fileInputRef.current) fileInputRef.current.value = ''
         }
     }
 
@@ -59,7 +95,7 @@ export default function NewServicePage() {
                 description,
                 location,
                 image: images[0] || "", // Main image
-                gallery: images,
+                gallery: images, // Send full gallery
             }
 
             await fetchAPI('/services', {
@@ -178,12 +214,17 @@ export default function NewServicePage() {
                         <div className="space-y-2">
                             <Label>Imágenes</Label>
                             <div
-                                className="border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-slate-50 transition-colors"
-                                onClick={() => fileInputRef.current?.click()}
+                                className={`border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-colors ${isUploading ? "bg-slate-100 cursor-wait" : "hover:bg-slate-50"
+                                    }`}
+                                onClick={() => !isUploading && fileInputRef.current?.click()}
                             >
-                                <Upload className="h-8 w-8 text-muted-foreground mb-4" />
-                                <p className="font-semibold">Click para subir imágenes</p>
-                                <p className="text-sm text-muted-foreground">o arrastra y suelta aquí</p>
+                                {isUploading ? (
+                                    <Loader2 className="h-8 w-8 text-primary animate-spin mb-4" />
+                                ) : (
+                                    <Upload className="h-8 w-8 text-muted-foreground mb-4" />
+                                )}
+                                <p className="font-semibold">{isUploading ? "Subiendo..." : "Click para subir imágenes"}</p>
+                                <p className="text-sm text-muted-foreground">{isUploading ? "Por favor espere" : "o arrastra y suelta aquí"}</p>
                                 <input
                                     type="file"
                                     multiple
@@ -191,6 +232,7 @@ export default function NewServicePage() {
                                     className="hidden"
                                     ref={fileInputRef}
                                     onChange={handleImageUpload}
+                                    disabled={isUploading}
                                 />
                             </div>
                             {images.length > 0 && (
@@ -226,8 +268,8 @@ export default function NewServicePage() {
                         <Link href="/dashboard/provider/services">
                             <Button variant="ghost" type="button">Cancelar</Button>
                         </Link>
-                        <Button type="submit" disabled={isLoading}>
-                            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        <Button type="submit" disabled={isLoading || isUploading}>
+                            {(isLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Publicar Servicio
                         </Button>
                     </CardFooter>

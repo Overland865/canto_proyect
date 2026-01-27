@@ -245,8 +245,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const handleProfileCreation = async (userId: string, email: string, fullName: string, role: string, businessName?: string) => {
         // 2. Wait for Profile Creation (handled by DB trigger)
         let profileCreated = false
-        // Poll for 5 seconds (10 attempts * 500ms)
-        for (let i = 0; i < 10; i++) {
+        // Poll for 3 seconds (15 attempts * 200ms)
+        for (let i = 0; i < 15; i++) {
             const { data: profile } = await supabase
                 .from('profiles')
                 .select('id')
@@ -257,7 +257,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 profileCreated = true
                 break
             }
-            await new Promise(resolve => setTimeout(resolve, 500))
+            await new Promise(resolve => setTimeout(resolve, 200)) // Reduced wait time
         }
 
         if (!profileCreated) {
