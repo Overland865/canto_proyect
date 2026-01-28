@@ -36,7 +36,7 @@ export default function ProviderDashboardLayout({
         },
         {
             title: "Configuración",
-            href: "/dashboard/provider/settings",
+            href: "/dashboard/provider/profile",
             icon: Settings
         }
     ]

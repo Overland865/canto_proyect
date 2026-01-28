@@ -8,11 +8,37 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { CircleDollarSign, Users, Activity, AlertCircle, Plus } from "lucide-react"
 import { useProvider } from "@/context/provider-context"
 import { useAuth } from "@/context/auth-context"
+import { useState, useEffect } from "react"
+import { createClient } from "@/lib/supabase/client"
 
 export default function ProviderDashboardPage() {
     const { user } = useAuth()
-    const { getMyServices, deleteService } = useProvider()
+    const { getMyServices, deleteService, bookings } = useProvider()
     const myServices = getMyServices()
+    const supabase = createClient()
+    const [views, setViews] = useState(0)
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            if (!user) return
+            const { data } = await supabase
+                .from('provider_profiles')
+                .select('views')
+                .eq('id', user.id)
+                .single()
+
+            if (data) setViews(data.views || 0)
+        }
+        fetchStats()
+    }, [user])
+
+    // Calculate Total Income (Confirmed or Completed)
+    const income = bookings.reduce((sum, booking) => {
+        if (booking.status === 'confirmed' || booking.status === 'completed') {
+            return sum + (booking.amount || 0)
+        }
+        return sum
+    }, 0)
 
     if (!user || user.role !== "provider") {
         return <div>Acceso denegado. Este panel es solo para proveedores.</div>
@@ -23,7 +49,7 @@ export default function ProviderDashboardPage() {
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight">Panel de Proveedor</h2>
-                    <p className="text-muted-foreground">Bienvenido, {user.businessName}</p>
+                    <p className="text-muted-foreground">Bienvenido, {user.businessName || user.name}</p>
                 </div>
                 <Link href="/dashboard/provider/services/new">
                     <Button>
@@ -51,8 +77,8 @@ export default function ProviderDashboardPage() {
                         <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">$0.00</div>
-                        <p className="text-xs text-muted-foreground">Comienza a vender hoy</p>
+                        <div className="text-2xl font-bold">${income.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                        <p className="text-xs text-muted-foreground">Ingresos confirmados</p>
                     </CardContent>
                 </Card>
                 <Card>
@@ -71,8 +97,8 @@ export default function ProviderDashboardPage() {
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">128</div>
-                        <p className="text-xs text-muted-foreground">+12% esta semana</p>
+                        <div className="text-2xl font-bold">{views}</div>
+                        <p className="text-xs text-muted-foreground">Visualizaciones totales</p>
                     </CardContent>
                 </Card>
             </div>
