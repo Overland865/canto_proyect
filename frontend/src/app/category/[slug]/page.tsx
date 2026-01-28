@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { MapPin, Star, ShieldCheck, ShoppingCart, ArrowLeft } from "lucide-react"
-import { services } from "@/lib/data"
+import { useProvider } from "@/context/provider-context"
 import { useCart } from "@/context/cart-context"
 
 // Mapping from URL slug/label to Data Category
@@ -31,9 +31,18 @@ export default function CategoryPage() {
     // Determine the data category to filter by
     const dataCategory = CATEGORY_MAP[slug] || slug
 
+    // Use real data from context
+    const { getAllServices } = useProvider()
+    const services = getAllServices()
+
     const { addToCart } = useCart()
 
-    const filteredServices = services.filter((service) => service.category === dataCategory)
+    // Case-insensitive filtering
+    const filteredServices = services.filter((service) => {
+        if (!service.category) return false
+        return service.category.toLowerCase().includes(dataCategory.toLowerCase()) ||
+            dataCategory.toLowerCase().includes(service.category.toLowerCase())
+    })
 
     const handleAddToCart = (e: React.MouseEvent, service: any) => {
         e.preventDefault()

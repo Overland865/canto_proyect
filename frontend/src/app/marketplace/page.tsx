@@ -49,7 +49,10 @@ function MarketplaceContent() {
     }
 
     const filteredServices = services.filter((service) => {
-        const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(service.category)
+        const matchesCategory = selectedCategories.length === 0 || selectedCategories.some(cat =>
+            service.category.toLowerCase().includes(cat.toLowerCase()) ||
+            cat.toLowerCase().includes(service.category.toLowerCase())
+        )
         const matchesPrice = service.price <= priceRange[0]
         const matchesSearch = service.title.toLowerCase().includes(searchValue.toLowerCase()) ||
             service.location.toLowerCase().includes(searchValue.toLowerCase()) ||
