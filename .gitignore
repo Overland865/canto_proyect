@@ -3,7 +3,29 @@ node_modules
 .env
 .env.local
 .DS_Store
+<<<<<<< HEAD
 dist
 build
 coverage
 .vscode
+=======
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Archivos temporales
+tmp/
+temp/
+
+# Next.js
+.next/
+out/
+build/
+dist/
+.env.local
+.vercel
+>>>>>>> f7d9cf7a41d26948fd0c0e07f57f3f20f4f703ed
