@@ -1,0 +1,131 @@
+# Análisis y Requerimientos de Base de Datos - LocalSpace
+
+Este documento define la estructura de base de datos necesaria para la plataforma "LocalSpace" (marketplace de servicios de eventos), basado en el código frontend existente y los datos de prueba.
+
+## 1. Contexto General
+La aplicación tiene dos roles principales: **Consumidores** (Users) y **Proveedores** (Providers).
+- Los proveedores publican servicios.
+- Los consumidores buscan servicios y hacen reservaciones.
+- Existen flujos de reservación con estados (pendiente, confirmado, etc.) y notificaciones.
+
+## 2. Esquema de Tablas Propuesto
+
+### A. Usuarios y Perfiles (`profiles`)
+Tabla base para todos los usuarios.
+- `id` (uuid, PK): Referencia a `auth.users`.
+- `email` (text): Email del usuario.
+- `full_name` (text): Nombre completo.
+- `role` (text): 'consumer' | 'provider'.
+- `is_verified` (boolean): Para validar proveedores confiables.
+- `created_at` (timestamp).
+- `avatar_url` (text): Foto de perfil opcional.
+
+### B. Detalles de Proveedores (`provider_profiles`)
+Información extendida exclusiva para usuarios con rol 'provider'.
+- `id` (uuid, PK, FK): Referencia a `profiles.id`.
+- `business_name` (text): Nombre comercial (ej. "Banquetes Delicia Real").
+- `description` (text): Descripción detallada del negocio.
+- `categories` (text[]): Array de categorías que maneja (ej. ["Banquetes", "Meseros"]).
+- `location` (text): Ubicación general (ej. "CDMX, Polanco").
+- `contact_phone` (text).
+- `contact_email` (text): Puede ser diferente al de login.
+- `contact_website` (text).
+- `social_instagram` (text).
+- `social_facebook` (text).
+- `gallery_images` (text[]): Array de URLs de imágenes del portafolio del proveedor.
+- `rating` (numeric): Calificación promedio (cacheada o calculada).
+- `reviews_count` (integer): Conteo de reseñas.
+
+### C. Servicios (`services`)
+Los productos/servicios que ofrece cada proveedor.
+- `id` (uuid, PK).
+- `provider_id` (uuid, FK): Referencia a `profiles.id`.
+- `title` (text).
+- `description` (text).
+- `category` (text): Categoría principal del servicio.
+- `price` (numeric).
+- `unit` (text): Unidad de cobro (ej. "pp", "por evento", "hora").
+- `image` (text): Imagen principal del servicio.
+- `location` (text): Ubicación específica del servicio (si aplica).
+- `is_active` (boolean): Para pausar servicios sin borrarlos.
+- `rating` (numeric): Calificación promedio del servicio.
+- `reviews_count` (integer).
+
+### D. Reservas (`bookings`)
+Gestión de citas y contrataciones.
+- `id` (uuid, PK).
+- `user_id` (uuid, FK): Cliente.
+- `provider_id` (uuid, FK): Proveedor.
+- `service_id` (uuid, FK): Servicio contratado.
+- `date` (date): Fecha del evento.
+- `time` (text): Hora o rango de horario (ej. "14:00").
+- `guests` (integer): Número de invitados.
+- `status` (text): 'pending', 'confirmed', 'rejected', 'rescheduled', 'completed', 'cancelled'.
+- `total_price` (numeric): Precio acordado.
+- `notes` (text): Especificaciones especiales del cliente.
+- `created_at` (timestamp).
+
+### E. Reseñas (`reviews`)
+Sistema de calificación.
+- `id` (uuid, PK).
+- `booking_id` (uuid, FK): Referencia a una reserva completada (para verificar la reseña).
+- `service_id` (uuid, FK).
+- `user_id` (uuid, FK): Autor de la reseña.
+- `rating` (integer): 1-5 estrellas.
+- `comment` (text).
+- `created_at` (timestamp).
+
+### F. Notificaciones (`notifications`)
+Para alertar cambios de estado en reservas.
+- `id` (uuid, PK).
+- `user_id` (uuid, FK): Destinatario (puede ser proveedor o cliente).
+- `type` (text): 'booking_request', 'booking_status_change', etc.
+- `title` (text): Título corto (ej. "Nueva Reserva").
+- `message` (text): Detalle (ej. "Juan quiere reservar tu servicio de DJ").
+- `related_booking_id` (uuid, FK).
+- `read` (boolean).
+- `created_at` (timestamp).
+
+## 3. Storage Buckets (Almacenamiento de Archivos)
+
+Se requieren buckets públicos para alojar las imágenes subidas por los usuarios.
+
+### A. Bucket `images`
+Bucket unificado para imágenes de la aplicación (o dividido en sub-buckets si se prefiere, aquí se propone uso de carpetas).
+
+**Estructura de Carpetas Propuesta:**
+- `avatars/{user_id}/`: Fotos de perfil.
+- `services/{provider_id}/{service_id}/`: Imágenes principales de servicios.
+- `portfolio/{provider_id}/`: Imágenes de galería del portafolio del proveedor.
+
+**Políticas de Seguridad de Storage:**
+1.  **Lectura Pública (`Select`)**:
+    - Cualquier persona (`anon` o `authenticated`) puede ver archivos en el bucket `images`.
+2.  **Escritura/Subida (`Insert`)**:
+    - **Avatars**: El usuario autenticado solo puede subir a `avatars/{uid}/*`.
+    - **Servicios/Portafolio**: Solo usuarios con rol 'provider' pueden subir a sus carpetas correspondientes (`services/{uid}/*`, `portfolio/{uid}/*`).
+3.  **Actualización/Eliminación (`Update/Delete`)**:
+    - Los usuarios solo pueden modificar o borrar sus propios archivos.
+
+## 4. Políticas de Seguridad (RLS) - Base de Datos
+
+- **Perfiles**:
+    - `Select`: Público para información básica de proveedores. Privado para datos sensibles de consumidores.
+    - `Update`: Solo el propio usuario.
+- **Servicios**:
+    - `Select`: Público.
+    - `Insert/Update/Delete`: Solo el proveedor dueño del servicio.
+- **Reservas**:
+    - `Select`: Solo el `user_id` (cliente) o `provider_id` (proveedor) involucrados.
+    - `Insert`: Usuarios autenticados.
+    - `Update`: Proveedores (aceptar/rechazar) y Clientes (cancelar/reagendar).
+- **Notificaciones**:
+    - `Select`: Solo el destinatario (`user_id`).
+
+## 5. Próximos Pasos para Implementación
+1. Ejecutar script de creación de tablas usando el MCP de Supabase.
+2. Crear el Bucket `images` en Supabase Storage.
+3. Configurar las políticas de storage mencionadas.
+4. Crear triggers para:
+    - Actualizar `updated_at` automáticamente.
+    - Recalcular promedios de `rating` en `services` y `provider_profiles` cuando se inserta una `review`.

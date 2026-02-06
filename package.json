@@ -1,0 +1,13 @@
+{
+    "name": "canto-proyect-monorepo",
+    "version": "1.0.0",
+    "description": "Monorepo for Local_Space project",
+    "scripts": {
+        "dev:frontend": "cd frontend && npm run dev",
+        "dev:backend": "cd backend && npm run dev",
+        "install:all": "cd frontend && npm install && cd ../backend && npm install"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC"
+}
