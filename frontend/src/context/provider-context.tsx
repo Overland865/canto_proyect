@@ -63,52 +63,62 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
 
     const fetchServices = async () => {
         console.log("Fetching services...")
-        const { data, error } = await supabase
-            .from('services')
-            .select(`
-                *,
-                provider_profiles!inner (
-                    status,
-                    business_name,
-                    contact_phone
-                )
-            `)
-            .eq('provider_profiles.status', 'approved')
 
-        if (error) {
-            console.error("Error fetching services:", error)
+        // 1. Fetch approved provider profiles
+        const { data: profiles, error: profilesError } = await supabase
+            .from('provider_profiles')
+            .select('id, status, business_name, contact_phone')
+            .eq('status', 'approved')
+
+        if (profilesError) {
+            console.error("Error fetching profiles:", profilesError)
+            return
         }
-        if (data) {
-            console.log("Services fetched:", data.length)
-            const mappedServices = data.map((s: any) => ({
-                id: s.id,
-                providerId: s.provider_id,
-                title: s.title,
-                description: s.description,
-                category: s.category,
-                price: s.price,
-                unit: s.unit || undefined, // Handle optional
-                location: s.provider_profiles?.business_name || "Ubicación desconocida", // Map business name as location or part of it? 
-                // Wait, 'location' field in Service type seems to be used as 'description' in marketplace card? 
-                // In MarketplaceContent: description: service.location. 
-                // The DB doesn't have 'location' column in services. It has 'description'.
-                // I'll map businessName to businessName. 
-                // And I'll leave location as businessName for now or just empty string if not available.
-                // Actually, let's map businessName to businessName.
 
-                type: "service", // Default
-                items: [],
-                image: s.image_url,
-                gallery: s.gallery || [],
-                rating: 0, // Default or calculate?
-                reviews: 0,
-                verified: s.is_verified,
-                businessName: s.provider_profiles?.business_name,
-                contactPhone: s.provider_profiles?.contact_phone
-            }))
-            // We need to match the Service type structure expected by UI.
-            // UI expects 'location'. Let's use businessName + region if available, or just businessName.
-            // Since we don't have region in services, we use businessName.
+        if (!profiles || profiles.length === 0) {
+            console.log("No approved profiles found.")
+            setServices([])
+            return
+        }
+
+        const approvedProviderIds = profiles.map(p => p.id)
+
+        // 2. Fetch services belonging to these providers
+        const { data: servicesData, error: servicesError } = await supabase
+            .from('services')
+            .select('*')
+            .in('provider_id', approvedProviderIds)
+
+        if (servicesError) {
+            console.error("Error fetching services:", servicesError)
+            return
+        }
+
+        if (servicesData) {
+            console.log("Services fetched:", servicesData.length)
+            const mappedServices = servicesData.map((s: any) => {
+                const providerProfile = profiles.find(p => p.id === s.provider_id)
+                return {
+                    id: s.id,
+                    providerId: s.provider_id,
+                    title: s.title,
+                    description: s.description,
+                    category: s.category,
+                    price: s.price,
+                    unit: s.unit || undefined,
+                    location: providerProfile?.business_name || "Ubicación desconocida",
+                    type: "service",
+                    items: [],
+                    image: s.image_url,
+                    gallery: s.gallery || [],
+                    rating: 0,
+                    reviews: 0,
+                    verified: s.is_verified,
+                    businessName: providerProfile?.business_name,
+                    contactPhone: providerProfile?.contact_phone
+                }
+            })
+
             const finalServices = mappedServices.map((s: any) => ({
                 ...s,
                 location: s.businessName || "Online"
