@@ -1,18 +1,92 @@
 "use client"
 
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
+import { useEffect, useState } from "react"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { MapPin, Star, ShieldCheck, Mail, Phone, Globe, ArrowLeft, Instagram, Facebook } from "lucide-react"
-import { providers } from "@/lib/data"
+import { MapPin, Star, ShieldCheck, Mail, Phone, Globe, ArrowLeft, Instagram, Facebook, Loader2 } from "lucide-react"
 
 export default function ProviderDetailsPage() {
     const params = useParams()
     const id = params.id as string
-    const provider = providers.find((p) => p.id === id)
+    const [provider, setProvider] = useState<any>(null)
+    const [loading, setLoading] = useState(true)
+    const supabase = createClient()
+
+    useEffect(() => {
+        const fetchProvider = async () => {
+            if (!id) return;
+            try {
+                // 1. Fetch profile
+                const { data: profile, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', id)
+                    .single()
+
+                if (error || !profile) {
+                    setLoading(false)
+                    return
+                }
+
+                // 2. Fetch business details
+                const { data: detail } = await supabase
+                    .from('provider_profiles')
+                    .select('*')
+                    .eq('id', id)
+                    .maybeSingle()
+
+                // Manejo de imágenes
+                let providerImages = ["/placeholder-service.jpg"];
+                if (profile.gallery && profile.gallery.length > 0) {
+                    providerImages = profile.gallery;
+                } else if (profile.cover_image) {
+                    providerImages = [profile.cover_image];
+                } else if (profile.avatar_url) {
+                    providerImages = [profile.avatar_url];
+                }
+
+                setProvider({
+                    id: profile.id,
+                    name: detail?.business_name || profile.full_name,
+                    description: profile.description || detail?.description || "Sin descripción disponible.",
+                    location: detail?.location || "Mérida, Yucatán",
+                    rating: detail?.rating || 5.0,
+                    reviews: detail?.reviews_count || 0,
+                    verified: profile.is_verified || false,
+                    images: providerImages,
+                    categories: detail?.categories || ["Servicios"],
+                    contact: {
+                        phone: profile.phone || detail?.contact_phone || "No especificado",
+                        email: profile.email || detail?.contact_email || "No especificado",
+                        website: profile.website || detail?.contact_website || "No especificado"
+                    },
+                    social: {
+                        instagram: profile.social_media?.instagram || detail?.social_instagram || "@usuario",
+                        facebook: profile.social_media?.facebook || detail?.social_facebook || "/pagina"
+                    }
+                })
+            } catch (err) {
+                console.error("Error fetching provider:", err)
+            } finally {
+                setLoading(false)
+            }
+        }
+
+        fetchProvider()
+    }, [id])
+
+    if (loading) {
+        return (
+            <div className="container py-20 flex justify-center">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            </div>
+        )
+    }
 
     if (!provider) {
         return (
@@ -90,7 +164,7 @@ export default function ProviderDetailsPage() {
                                 {provider.description}
                             </p>
                             <div className="flex gap-2 mt-6">
-                                {provider.categories.map((cat, i) => (
+                                {provider.categories.map((cat: string, i: number) => (
                                     <Badge key={i} variant="secondary" className="text-sm px-3 py-1">
                                         {cat}
                                     </Badge>
@@ -106,7 +180,7 @@ export default function ProviderDetailsPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {provider.images.map((img, index) => (
+                                {provider.images.map((img: string, index: number) => (
                                     <div key={index} className="aspect-video rounded-lg overflow-hidden border bg-muted">
                                         <img
                                             src={img}

@@ -34,15 +34,26 @@ export default function ProvidersPage() {
                 // 3. Merge data
                 const merged = profiles.map((p: any) => {
                     const detail = detailsMap.get(p.id)
+
+                    // Manejo de imágenes: gallery > cover_image > avatar_url > default
+                    let providerImages = ["/placeholder-service.jpg"];
+                    if (p.gallery && p.gallery.length > 0) {
+                        providerImages = p.gallery;
+                    } else if (p.cover_image) {
+                        providerImages = [p.cover_image];
+                    } else if (p.avatar_url) {
+                        providerImages = [p.avatar_url];
+                    }
+
                     return {
                         id: p.id,
                         name: detail?.business_name || p.full_name, // Prefer business name
-                        description: p.description || "Sin descripción disponible.",
-                        location: p.region || "Mérida, Yucatán", // Fallback location
+                        description: p.description || detail?.description || "Sin descripción disponible.",
+                        location: detail?.location || "Mérida, Yucatán", // Fallback location
                         rating: detail?.rating || 5.0, // Default rating if new
-                        verified: true, // If approved, they are verified
-                        images: p.gallery && p.gallery.length > 0 ? p.gallery : [p.cover_image || "/placeholder-service.jpg"],
-                        categories: ["Servicios"] // Placeholder until categories are implemented
+                        verified: p.is_verified || false,
+                        images: providerImages,
+                        categories: detail?.categories || ["Servicios"]
                     }
                 })
 
