@@ -21,7 +21,7 @@ export default function ProviderSettingsPage() {
     const [emailNotifications, setEmailNotifications] = useState(true)
     const [bookingAlerts, setBookingAlerts] = useState(true)
     const [form, setForm] = useState({
-        full_name: user?.full_name || "",
+        full_name: [user?.name, user?.lastname].filter(Boolean).join(' '),
         phone: "",
         website: "",
         description: "",
