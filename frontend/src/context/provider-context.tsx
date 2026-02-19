@@ -94,7 +94,7 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
                 location: s.profiles?.full_name || "Ubicación desconocida",
                 type: "service",
                 items: [],
-                image: s.image_url,
+                image: s.image || s.image_url,
                 gallery: s.gallery || [],
                 rating: 0,
                 reviews: 0,
