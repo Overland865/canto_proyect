@@ -36,7 +36,7 @@ export default function ProvidersPage() {
                     const detail = detailsMap.get(p.id)
 
                     // Manejo de imágenes: gallery > cover_image > avatar_url > default
-                    let providerImages = ["/placeholder-service.jpg"];
+                    let providerImages = ["https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=2070&auto=format&fit=crop"];
                     if (p.gallery && p.gallery.length > 0) {
                         providerImages = p.gallery;
                     } else if (p.cover_image) {

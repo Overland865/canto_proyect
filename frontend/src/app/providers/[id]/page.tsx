@@ -41,7 +41,7 @@ export default function ProviderDetailsPage() {
                     .maybeSingle()
 
                 // Manejo de imágenes
-                let providerImages = ["/placeholder-service.jpg"];
+                let providerImages = ["https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=2070&auto=format&fit=crop"];
                 if (profile.gallery && profile.gallery.length > 0) {
                     providerImages = profile.gallery;
                 } else if (profile.cover_image) {
