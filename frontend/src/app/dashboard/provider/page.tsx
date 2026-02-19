@@ -10,6 +10,7 @@ import { useProvider } from "@/context/provider-context"
 import { useAuth } from "@/context/auth-context"
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { AvailabilityCalendar } from "@/components/dashboard/provider/availability-calendar"
 
 export default function ProviderDashboardPage() {
     const { user } = useAuth()
@@ -99,6 +100,28 @@ export default function ProviderDashboardPage() {
                     <CardContent>
                         <div className="text-2xl font-bold">{views}</div>
                         <p className="text-xs text-muted-foreground">Visualizaciones totales</p>
+                    </CardContent>
+                </Card>
+
+            </div>
+
+            {/* Availability Calendar Integration */}
+            <div className="mt-8 grid md:grid-cols-2 gap-8 items-start">
+                <AvailabilityCalendar />
+
+                {/* Additional context or instructions can go here */}
+                <Card className="h-full bg-slate-50 border-dashed">
+                    <CardHeader>
+                        <CardTitle>Gestión de Disponibilidad</CardTitle>
+                        <CardDescription>
+                            Mantén tu calendario actualizado para asegurar reservas.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4 text-sm text-muted-foreground">
+                        <p>✓ Los días en <span className="font-bold text-green-600">Verde</span> son reservas confirmadas.</p>
+                        <p>✓ Los días en <span className="font-bold text-red-600">Rojo</span> son días que has bloqueado manualmente.</p>
+                        <p>✓ Haz clic en un día libre para bloquearlo si no puedes atender eventos.</p>
+                        <p>✓ Haz clic en un día bloqueado para liberarlo y aceptar reservas nuevamente.</p>
                     </CardContent>
                 </Card>
             </div>

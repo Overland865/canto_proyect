@@ -11,6 +11,7 @@ import { useParams } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Dialog, DialogContent, DialogTrigger, DialogClose } from "@/components/ui/dialog"
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel"
+import ReviewsList from "@/components/reviews/ReviewsList"
 
 export default function ServiceDetailPage() {
     const params = useParams()
@@ -106,23 +107,10 @@ export default function ServiceDetailPage() {
 
                     <Separator />
 
-                    {/* Reviews Preview */}
+                    {/* Reviews */}
                     <div className="space-y-4">
-                        <h3 className="text-xl font-bold">Reseñas recientes</h3>
-                        <div className="space-y-4">
-                            <div className="flex gap-4">
-                                <Avatar>
-                                    <AvatarFallback>JD</AvatarFallback>
-                                </Avatar>
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="font-semibold">Juan Diaz</span>
-                                        <div className="flex text-yellow-500"><Star className="w-3 h-3 fill-current" /><Star className="w-3 h-3 fill-current" /><Star className="w-3 h-3 fill-current" /><Star className="w-3 h-3 fill-current" /><Star className="w-3 h-3 fill-current" /></div>
-                                    </div>
-                                    <p className="text-muted-foreground text-sm mt-1">Excelente servicio, muy recomendado.</p>
-                                </div>
-                            </div>
-                        </div>
+                        <h3 className="text-xl font-bold">Reseñas</h3>
+                        <ReviewsList serviceId={service.id} />
                     </div>
                 </div>
 
@@ -135,6 +123,7 @@ export default function ServiceDetailPage() {
                         serviceId={service.id}
                         providerId={service.providerId}
                         serviceName={service.title}
+                        providerPhone={service.contactPhone}
                     />
                 </div>
             </div>

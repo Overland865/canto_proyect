@@ -82,7 +82,7 @@ export default function AdminProvidersPage() {
                 ...p,
                 businessName: businessMap.get(p.id) || "N/A",
                 details: detailsMap.get(p.id) || {},
-                status: p.status || 'pending'
+                status: detailsMap.get(p.id)?.status || 'pending'
             }))
 
             setProviders(mergedProviders)
@@ -133,14 +133,17 @@ export default function AdminProvidersPage() {
     const handleApprove = async (id: string, email: string) => {
         setProcessing(id)
         try {
+            // Update provider_profiles status
             const { error } = await supabase
-                .from('profiles')
+                .from('provider_profiles')
                 .update({ status: 'approved' })
                 .eq('id', id)
 
             if (error) throw error
 
             setProviders(prev => prev.map(p => p.id === id ? { ...p, status: 'approved' } : p))
+
+            // Optional: Send email notification (backend logic usually)
 
         } catch (error) {
             console.error("Error approving provider:", error)
@@ -153,48 +156,32 @@ export default function AdminProvidersPage() {
     const handleDelete = async (id: string) => {
         setProcessing(id)
         try {
-            console.log("Starting deletion for:", id)
+            console.log("Starting deletion for provider:", id)
 
-            // 1. Delete services first
-            const { error: servicesError } = await supabase
-                .from('services')
-                .delete()
-                .eq('provider_id', id)
+            // Call backend API to delete provider and all related data
+            const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000'
+            const response = await fetch(`${backendUrl}/admin/delete-provider`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ providerId: id })
+            })
 
-            if (servicesError) {
-                console.error("Error deleting services:", servicesError)
-                throw servicesError
+            const data = await response.json()
+
+            if (!response.ok) {
+                throw new Error(data.error || data.details || 'Error al eliminar proveedor')
             }
 
-            // 2. Delete provider profile
-            const { error: profileError } = await supabase
-                .from('provider_profiles')
-                .delete()
-                .eq('id', id) // Assuming id is same as profile id
+            console.log("Provider deleted successfully:", data)
 
-            if (profileError) {
-                console.error("Error deleting provider profile:", profileError)
-                // Continue? Might be a shared ID issue, usually provider_profiles.id FKs to profiles.id
-                // If it fails, maybe it doesn't exist, so we can warn and proceed or throw.
-                // We'll throw to be safe, but ignore "not found" if needed.
-            }
-
-            // 3. Finally delete the auth profile
-            const { error } = await supabase
-                .from('profiles')
-                .delete()
-                .eq('id', id)
-
-            if (error) {
-                console.error("Error deleting main profile:", error)
-                throw error
-            }
-
+            // Update UI
             setProviders(prev => prev.filter(p => p.id !== id))
-            alert("Proveedor eliminado correctamente")
+            alert(`Proveedor eliminado correctamente. Se eliminaron ${data.deletedServices || 0} servicios asociados.`)
 
         } catch (error: any) {
-            console.error("Error deleting provider FULL:", JSON.stringify(error, null, 2))
+            console.error("Error deleting provider:", error)
             alert(`Error al eliminar proveedor: ${error.message || "Error desconocido"}`)
         } finally {
             setProcessing(null)

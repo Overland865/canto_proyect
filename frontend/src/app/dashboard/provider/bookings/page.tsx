@@ -48,21 +48,29 @@ export default function BookingsPage() {
     }
 
     // Filter mainly pending/confirmed for this view or sort by date? 
+    const parseBookingDate = (dateStr: string) => {
+        if (dateStr.includes('-')) {
+            // YYYY-MM-DD
+            const [year, month, day] = dateStr.split('-')
+            return new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+        } else if (dateStr.includes('/')) {
+            // DD/MM/YYYY
+            const [day, month, year] = dateStr.split('/')
+            return new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+        }
+        return new Date(dateStr)
+    }
+
     const bookingsOnDate = (date: Date) => {
         return bookings.filter(b => {
-            // Mock data is DD/MM/YYYY.
-            const [day, month, year] = b.date.split('/')
-            // Note: month is 0-indexed in Date constructor
-            const bookingDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+            const bookingDate = parseBookingDate(b.date)
             return bookingDate.toDateString() === date.toDateString()
         })
     }
 
     // Create an array of Date objects for markers
-    const bookedDates = bookings.map(b => {
-        const [day, month, year] = b.date.split('/')
-        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
-    })
+    const bookedDates = bookings.map(b => parseBookingDate(b.date))
+
 
     return (
         <div className="space-y-6">

@@ -42,8 +42,28 @@ export async function updateSession(request: NextRequest) {
         return NextResponse.redirect(url)
     }
 
-    // If user is logged in, we might want to check for role-based access here in the future
-    // For now, basic protection of /dashboard is enough
+    // Role-based access control
+    if (user && request.nextUrl.pathname.startsWith('/dashboard')) {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single()
+
+        if (
+            request.nextUrl.pathname.startsWith('/dashboard/admin') &&
+            profile?.role !== 'admin'
+        ) {
+            return NextResponse.redirect(new URL('/', request.url))
+        }
+
+        if (
+            request.nextUrl.pathname.startsWith('/dashboard/provider') &&
+            profile?.role !== 'provider'
+        ) {
+            return NextResponse.redirect(new URL('/', request.url))
+        }
+    }
 
     return response
 }

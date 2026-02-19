@@ -63,23 +63,57 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
 
     const fetchServices = async () => {
         console.log("Fetching services...")
-        // Modified to select gallery as well
         const { data, error } = await supabase
             .from('services')
-            .select('*') // Select all columns including gallery
+            .select(`
+                *,
+                provider_profiles!inner (
+                    status,
+                    business_name,
+                    contact_phone
+                )
+            `)
+            .eq('provider_profiles.status', 'approved')
 
         if (error) {
             console.error("Error fetching services:", error)
         }
         if (data) {
             console.log("Services fetched:", data.length)
-            // Map DB fields to Service type (snake_case to camelCase)
             const mappedServices = data.map((s: any) => ({
-                ...s,
+                id: s.id,
                 providerId: s.provider_id,
-                gallery: s.gallery || [], // Ensure gallery is array
+                title: s.title,
+                description: s.description,
+                category: s.category,
+                price: s.price,
+                unit: s.unit || undefined, // Handle optional
+                location: s.provider_profiles?.business_name || "Ubicación desconocida", // Map business name as location or part of it? 
+                // Wait, 'location' field in Service type seems to be used as 'description' in marketplace card? 
+                // In MarketplaceContent: description: service.location. 
+                // The DB doesn't have 'location' column in services. It has 'description'.
+                // I'll map businessName to businessName. 
+                // And I'll leave location as businessName for now or just empty string if not available.
+                // Actually, let's map businessName to businessName.
+
+                type: "service", // Default
+                items: [],
+                image: s.image_url,
+                gallery: s.gallery || [],
+                rating: 0, // Default or calculate?
+                reviews: 0,
+                verified: s.is_verified,
+                businessName: s.provider_profiles?.business_name,
+                contactPhone: s.provider_profiles?.contact_phone
             }))
-            setServices(mappedServices)
+            // We need to match the Service type structure expected by UI.
+            // UI expects 'location'. Let's use businessName + region if available, or just businessName.
+            // Since we don't have region in services, we use businessName.
+            const finalServices = mappedServices.map((s: any) => ({
+                ...s,
+                location: s.businessName || "Online"
+            }))
+            setServices(finalServices)
         }
     }
 
@@ -90,22 +124,22 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
             .from('bookings')
             .select(`
                 *,
-                profiles:user_id (full_name),
+                profiles:client_id (full_name),
                 services:service_id (title)
             `)
-            .eq('provider_id', user.id) // Assuming user.id is the UUID
+            .eq('provider_id', user.id)
 
         if (data) {
             const mappedBookings: Booking[] = data.map((b: any) => ({
                 id: b.id,
                 serviceId: b.service_id,
                 serviceName: b.services?.title || 'Unknown Service',
-                clientId: b.user_id,
+                clientId: b.client_id,
                 clientName: b.profiles?.full_name || 'Unknown Client',
                 date: b.date,
                 time: b.time,
                 status: b.status,
-                amount: b.price || 0,
+                amount: b.total_price || 0,
                 guests: b.guests,
                 specifications: b.specifications,
                 proposedDate: b.proposed_date
@@ -150,6 +184,7 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
                     fetchBookings() // Refresh on change
                 })
                 .subscribe()
+
 
             return () => {
                 supabase.removeChannel(channel)

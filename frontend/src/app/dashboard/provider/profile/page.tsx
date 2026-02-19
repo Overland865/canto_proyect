@@ -48,21 +48,21 @@ export default function ProviderProfilePage() {
 
                 if (error && error.code !== 'PGRST116') throw error
 
-                // 2. Fetch Business Name
+                // 2. Fetch Provider Details
                 const { data: providerProfile } = await supabase
                     .from('provider_profiles')
-                    .select('business_name')
+                    .select('business_name, contact_phone')
                     .eq('id', user.id)
                     .single()
 
                 if (providerProfile) {
-                    setBusinessName(providerProfile.business_name)
+                    setBusinessName(providerProfile.business_name || "")
                 }
 
                 if (profile) {
                     setFormData({
                         description: profile.description || "",
-                        phone: profile.phone || "",
+                        phone: providerProfile?.contact_phone || profile.phone || "", // Priority to business phone
                         website: profile.website || "",
                         social_media: profile.social_media || { instagram: "", facebook: "", tiktok: "" },
                         cover_image: profile.cover_image || "",
@@ -158,13 +158,15 @@ export default function ProviderProfilePage() {
                 })
                 .eq('id', user.id)
 
-            // Update Provider Profile (Business Name)
+            // Update Provider Profile (Business Name & Contact Phone)
             const { error: providerError } = await supabase
                 .from('provider_profiles')
                 .update({
-                    business_name: businessName
+                    business_name: businessName,
+                    contact_phone: formData.phone
                 })
                 .eq('id', user.id)
+
 
             if (providerError) throw providerError
 

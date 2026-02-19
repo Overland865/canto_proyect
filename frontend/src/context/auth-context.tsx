@@ -108,7 +108,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 lastname: profile.full_name?.split(' ').slice(1).join(' ') || '',
                 email: email,
                 role: profile.role,
-                status: profile.status, // Added status
                 region: profile.region,
             }
 
@@ -116,7 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (profile.role === 'provider') {
                 const { data: providerData, error: providerError } = await supabase
                     .from('provider_profiles')
-                    .select('business_name')
+                    .select('business_name, status')
                     .eq('id', userId)
                     .maybeSingle()
 
@@ -126,6 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
                 if (providerData) {
                     extendedUser.businessName = providerData.business_name
+                    extendedUser.status = providerData.status
                 }
             }
 
@@ -133,9 +133,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error: any) {
             console.error("Error fetching profile:", error)
             setAuthError("Profile Fetch Error: " + (error.message || JSON.stringify(error)))
-            // Do not reset user to null if we want to allow at least partial auth, 
-            // but for now, if profile fails, we effectively have no user data.
-            // We could set a partial user here if session exists.
             setUser(null)
         }
     }
@@ -157,22 +154,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (data.user) {
                 const { data: profile } = await supabase
                     .from('profiles')
-                    .select('role, status')
+                    .select('role')
                     .eq('id', data.user.id)
                     .single()
 
                 if (profile?.role === 'admin') {
-                    router.push("/dashboard/admin/providers")
+                    // Standardized Admin Dashboard Route
+                    router.push("/dashboard/admin")
                 } else if (profile?.role === 'provider') {
-                    if (profile.status === 'pending') {
-                        toast.warning("Tu cuenta está pendiente de aprobación por el administrador.")
-                        // Optional: Redirect to a status page or stay on home
+                    // Fetch provider status
+                    const { data: providerProfile } = await supabase
+                        .from('provider_profiles')
+                        .select('status')
+                        .eq('id', data.user.id)
+                        .maybeSingle()
+
+                    if (providerProfile?.status === 'pending') {
+                        toast.warning("Tu cuenta está pendiente de aprobación.", {
+                            description: "Te notificaremos cuando un administrador apruebe tu negocio."
+                        })
+                        // Redirect to home or a status page
                         router.push("/")
+                    } else if (providerProfile?.status === 'approved') {
+                        router.push("/dashboard/provider")
+                    } else if (providerProfile?.status === 'rejected') {
+                        toast.error("Tu cuenta ha sido rechazada.")
+                        await logout()
                     } else {
+                        // Fallback for new providers or other statuses
                         router.push("/dashboard/provider")
                     }
                 } else {
-                    router.push("/")
+                    // Consumers go to Marketplace
+                    router.push("/marketplace")
                 }
             } else {
                 router.refresh()
