@@ -47,12 +47,7 @@ export default function Home() {
         {/* Hero Section */}
         <section className="relative h-[600px] w-full overflow-hidden bg-slate-950 text-white">
           {/* DEBUG INFO CONSUMER */}
-          <div className="absolute top-20 left-4 z-50 bg-black/80 p-4 rounded text-xs text-green-400 font-mono border border-green-500 max-w-sm pointer-events-none">
-            <p>IS AUTH: {isAuthenticated ? "YES" : "NO"}</p>
-            <p>User Role: {user ? user.role : "null"}</p>
-            <p>User ID: {user ? user.id : "null"}</p>
-            <p>Auth Error: {useAuth().authError || "None"}</p>
-          </div>
+
           <Carousel
             plugins={[plugin.current]}
             className="w-full h-full"
@@ -63,11 +58,13 @@ export default function Home() {
           >
             <CarouselContent className="h-[600px] ml-0">
               {heroImages.map((img, index) => (
-                <CarouselItem key={index} className="pl-0 h-full w-full">
+                <CarouselItem key={index} className="pl-0 h-[600px] w-full relative">
                   <div
-                    className="h-full w-full bg-cover bg-center transition-transform duration-1000 ease-out"
+                    className="absolute inset-0 h-full w-full bg-cover bg-center transition-transform duration-1000 ease-out"
                     style={{ backgroundImage: `url(${img})` }}
                   />
+                  {/* Fallback color if image fails */}
+                  <div className="absolute inset-0 bg-slate-900 -z-10" />
                 </CarouselItem>
               ))}
             </CarouselContent>

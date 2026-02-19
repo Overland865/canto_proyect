@@ -20,17 +20,19 @@ export function Navbar() {
   const { isAuthenticated, user, logout } = useAuth()
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    // Style Update V2: Azul Marino (Navy) Background
+    <header className="sticky top-0 z-50 w-full border-b border-[hsl(220,55%,12%)] bg-[hsl(220,55%,18%)] text-white shadow-md">
       <div className="container flex h-16 items-center">
         <div className="mr-4 hidden md:flex">
           <Link href="/" className="mr-6 flex items-center space-x-2">
-            <Home className="h-6 w-6" />
+            <Home className="h-6 w-6 text-primary" />
+            <span className="font-bold text-white hidden sm:inline-block">Local_Space</span>
           </Link>
           <nav className="flex items-center space-x-6 text-sm font-medium">
             {user?.role === 'provider' ? (
               <Link
                 href="/dashboard/provider"
-                className="transition-colors hover:text-foreground/80 text-foreground font-bold text-primary"
+                className="transition-colors hover:text-primary text-white font-bold"
               >
                 Ir a mi Panel
               </Link>
@@ -38,13 +40,13 @@ export function Navbar() {
               <>
                 <Link
                   href="/marketplace"
-                  className="transition-colors hover:text-foreground/80 text-foreground/60"
+                  className="transition-colors hover:text-primary text-white/80"
                 >
                   Catálogo
                 </Link>
                 <Link
                   href="/providers"
-                  className="transition-colors hover:text-foreground/80 text-foreground/60"
+                  className="transition-colors hover:text-primary text-white/80"
                 >
                   Proveedor
                 </Link>
@@ -52,18 +54,20 @@ export function Navbar() {
             )}
           </nav>
         </div>
+
+        {/* Mobile Menu Trigger */}
         <Sheet>
           <SheetTrigger asChild>
             <Button
               variant="ghost"
-              className="mr-2 px-0 text-base hover:bg-transparent focus-visible:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 md:hidden"
+              className="mr-2 px-0 text-base md:hidden text-white hover:bg-white/10 hover:text-primary"
             >
               <Menu className="h-5 w-5" />
               <span className="sr-only">Toggle Menu</span>
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="pr-0">
-            <Link href="/" className="flex items-center">
+          <SheetContent side="left" className="pr-0 bg-[hsl(220,55%,18%)] border-r border-[hsl(220,55%,12%)] text-white">
+            <Link href="/" className="flex items-center text-white">
               <span className="font-bold">Local_Space</span>
             </Link>
             <nav className="flex flex-col gap-4 mt-4">
@@ -78,13 +82,13 @@ export function Navbar() {
                 <>
                   <Link
                     href="/marketplace"
-                    className="block px-2 py-1 text-lg"
+                    className="block px-2 py-1 text-lg text-white/80 hover:text-primary"
                   >
                     Catálogo
                   </Link>
                   <Link
                     href="/providers"
-                    className="block px-2 py-1 text-lg"
+                    className="block px-2 py-1 text-lg text-white/80 hover:text-primary"
                   >
                     Proveedor
                   </Link>
@@ -93,44 +97,47 @@ export function Navbar() {
             </nav>
           </SheetContent>
         </Sheet>
+
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
           <div className="w-full flex-1 md:w-auto md:flex-none">
-            {/* Search bar could go here or be hidden on mobile */}
+            {/* Search bar placeholder */}
           </div>
           <nav className="flex items-center gap-2">
             <CartSheet />
             {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                    <Avatar className="h-8 w-8">
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full hover:bg-white/10">
+                    <Avatar className="h-8 w-8 ring-2 ring-primary/20">
                       <AvatarImage src="/avatars/01.png" alt={user?.name} />
-                      <AvatarFallback>{user?.name?.charAt(0).toUpperCase()}</AvatarFallback>
+                      <AvatarFallback className="bg-primary text-white font-bold border border-white/20">
+                        {user?.name?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuContent className="w-56 bg-[hsl(220,55%,18%)] text-white border border-[hsl(220,55%,12%)]" align="end" forceMount>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{user?.name} {user?.lastname}</p>
-                      <p className="text-xs leading-none text-muted-foreground">
+                      <p className="text-sm font-medium leading-none text-white">{user?.name} {user?.lastname}</p>
+                      <p className="text-xs leading-none text-white/60">
                         {user?.email}
                       </p>
                     </div>
                   </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-primary text-white cursor-pointer">
                     <Link href={user?.role === 'provider' ? "/dashboard/provider/settings" : "/dashboard/user/profile"}>
                       Perfil
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
+                  <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-primary text-white cursor-pointer">
                     <Link href={user?.role === 'provider' ? "/dashboard/provider" : "/dashboard/user"}>
                       Dashboard
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={logout}>
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuItem onClick={logout} className="focus:bg-red-500/20 focus:text-red-400 text-red-300 cursor-pointer">
                     Cerrar Sesión
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -138,12 +145,12 @@ export function Navbar() {
             ) : (
               <>
                 <Link href="/login">
-                  <Button variant="ghost" size="sm">
+                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 hover:text-primary">
                     Iniciar Sesión
                   </Button>
                 </Link>
                 <Link href="/register">
-                  <Button size="sm">
+                  <Button size="sm" className="bg-primary hover:bg-primary/90 text-white font-semibold shadow-sm">
                     Registrarse
                   </Button>
                 </Link>

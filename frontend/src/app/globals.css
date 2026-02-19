@@ -4,36 +4,38 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    /* Paleta v2 - Identidad Cálida (Beige + Azul Marino + Ámbar) */
+    --background: 38 25% 83%;  /* Beige/arena cálido */
+    --foreground: 220 55% 18%; /* Azul marino oscuro */
+    --card: 0 0% 100%;         /* Blanco puro */
+    --card-foreground: 220 55% 18%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --popover-foreground: 220 55% 18%;
+    --primary: 32 72% 47%;     /* Ámbar/dorado cálido */
+    --primary-foreground: 0 0% 100%; /* Blanco */
+    --secondary: 38 22% 92%;   /* Arena muy claro */
+    --secondary-foreground: 220 55% 18%;
+    --muted: 38 20% 88%;       /* Beige apagado */
+    --muted-foreground: 220 25% 45%; /* Azul grisáceo */
+    --accent: 32 72% 47%;      /* Ámbar para hover */
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
+    --border: 38 18% 72%;      /* Beige medio */
+    --input: 38 18% 72%;
+    --ring: 32 72% 47%;
     --radius: 0.5rem;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
+    /* Modo oscuro - Azul marino profundo + Beige claro + Ámbar */
+    --background: 220 55% 10%; /* Azul marino muy oscuro */
+    --foreground: 38 25% 90%;  /* Beige claro */
+    --card: 220 55% 14%;       /* Azul marino con luz */
+    --card-foreground: 38 25% 90%;
+    --popover: 220 55% 14%;
+    --popover-foreground: 38 25% 90%;
+    --primary: 32 72% 52%;     /* Ámbar brillante */
     --primary-foreground: 222.2 47.4% 11.2%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -45,7 +47,7 @@
     --destructive-foreground: 210 40% 98%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --ring: 32 72% 52%;
   }
 }
 
@@ -53,7 +55,6 @@
   * {
     @apply border-border;
   }
-
   body {
     @apply bg-background text-foreground;
   }
