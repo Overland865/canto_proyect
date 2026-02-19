@@ -64,60 +64,44 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
     const fetchServices = async () => {
         console.log("Fetching services...")
 
-        // 1. Fetch approved provider profiles
-        const { data: profiles, error: profilesError } = await supabase
-            .from('provider_profiles')
-            .select('id, status, business_name, contact_phone')
-            .eq('status', 'approved')
-
-        if (profilesError) {
-            console.error("Error fetching profiles:", profilesError)
-            return
-        }
-
-        if (!profiles || profiles.length === 0) {
-            console.log("No approved profiles found.")
-            setServices([])
-            return
-        }
-
-        const approvedProviderIds = profiles.map(p => p.id)
-
-        // 2. Fetch services belonging to these providers
-        const { data: servicesData, error: servicesError } = await supabase
+        const { data, error } = await supabase
             .from('services')
-            .select('*')
-            .in('provider_id', approvedProviderIds)
+            .select(`
+                *,
+                profiles!inner (
+                    status,
+                    full_name,
+                    phone
+                )
+            `)
+            .eq('profiles.status', 'approved')
 
-        if (servicesError) {
-            console.error("Error fetching services:", servicesError)
+        if (error) {
+            console.error("Error fetching services:", error)
             return
         }
 
-        if (servicesData) {
-            console.log("Services fetched:", servicesData.length)
-            const mappedServices = servicesData.map((s: any) => {
-                const providerProfile = profiles.find(p => p.id === s.provider_id)
-                return {
-                    id: s.id,
-                    providerId: s.provider_id,
-                    title: s.title,
-                    description: s.description,
-                    category: s.category,
-                    price: s.price,
-                    unit: s.unit || undefined,
-                    location: providerProfile?.business_name || "Ubicación desconocida",
-                    type: "service",
-                    items: [],
-                    image: s.image_url,
-                    gallery: s.gallery || [],
-                    rating: 0,
-                    reviews: 0,
-                    verified: s.is_verified,
-                    businessName: providerProfile?.business_name,
-                    contactPhone: providerProfile?.contact_phone
-                }
-            })
+        if (data) {
+            console.log("Services fetched:", data.length)
+            const mappedServices = data.map((s: any) => ({
+                id: s.id,
+                providerId: s.provider_id,
+                title: s.title,
+                description: s.description,
+                category: s.category,
+                price: s.price,
+                unit: s.unit || undefined,
+                location: s.profiles?.full_name || "Ubicación desconocida",
+                type: "service",
+                items: [],
+                image: s.image_url,
+                gallery: s.gallery || [],
+                rating: 0,
+                reviews: 0,
+                verified: s.is_verified,
+                businessName: s.profiles?.full_name,
+                contactPhone: s.profiles?.phone
+            }))
 
             const finalServices = mappedServices.map((s: any) => ({
                 ...s,
