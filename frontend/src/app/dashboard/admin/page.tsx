@@ -31,42 +31,48 @@ export default function AdminDashboardRoot() {
                     </CardContent>
                 </Card>
 
-                <Card className="opacity-60">
+                <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Usuarios Registrados</CardTitle>
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <p className="text-xs text-muted-foreground mb-4">
-                            Gestión de clientes (Próximamente).
+                            Gestión de clientes y proveedores registrados en la plataforma.
                         </p>
-                        <Button className="w-full" size="sm" variant="outline" disabled>En desarrollo</Button>
+                        <Link href="/dashboard/admin/users">
+                            <Button className="w-full" size="sm" variant="outline">Ver Usuarios</Button>
+                        </Link>
                     </CardContent>
                 </Card>
 
-                <Card className="opacity-60">
+                <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Monitor de Actividad</CardTitle>
                         <Activity className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <p className="text-xs text-muted-foreground mb-4">
-                            Métricas globales de reservas (Próximamente).
+                            Métricas globales de reservas y ganancias generadas.
                         </p>
-                        <Button className="w-full" size="sm" variant="outline" disabled>En desarrollo</Button>
+                        <Link href="/dashboard/admin/activity">
+                            <Button className="w-full" size="sm" variant="outline">Ver Métricas</Button>
+                        </Link>
                     </CardContent>
                 </Card>
 
-                <Card className="opacity-60">
+                <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Seguridad</CardTitle>
                         <ShieldCheck className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <p className="text-xs text-muted-foreground mb-4">
-                            Auditoría de logs (Próximamente).
+                            Auditoría de logs y registros de autenticación del sistema.
                         </p>
-                        <Button className="w-full" size="sm" variant="outline" disabled>En desarrollo</Button>
+                        <Link href="/dashboard/admin/security">
+                            <Button className="w-full" size="sm" variant="outline">Ver Logs</Button>
+                        </Link>
                     </CardContent>
                 </Card>
             </div>
