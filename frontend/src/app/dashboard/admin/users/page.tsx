@@ -14,11 +14,62 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, UserX, Shield, Briefcase } from "lucide-react"
 import Link from "next/link"
+import { toast } from "sonner"
 
 export default function AdminUsersPage() {
     const supabase = createClient()
     const [users, setUsers] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+
+    const handleDeleteUser = async (userId: string, role: string) => {
+        if (!confirm("¿Estás seguro de que deseas eliminar a este usuario permanentemente? Esta acción no se puede deshacer.")) {
+            return;
+        }
+
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                toast.error("No estás autenticado");
+                return;
+            }
+
+            const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3000";
+
+            // Llama a la ruta del backend para limpiar servicios, perfiles, auth, etc.
+            const response = await fetch(`${backendUrl}/api/admin/delete-provider`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`
+                },
+                body: JSON.stringify({ providerId: userId })
+            });
+
+            if (!response.ok) {
+                // Por fallbacks de CORS, a veces puede haber redirecciones, intenta la ruta directa si /api/ falla:
+                const secondTry = await fetch(`${backendUrl}/admin/delete-provider`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${session.access_token}`
+                    },
+                    body: JSON.stringify({ providerId: userId })
+                });
+
+                if (!secondTry.ok) {
+                    const errorData = await secondTry.json();
+                    throw new Error(errorData.error || "No se pudo eliminar el usuario");
+                }
+            }
+
+            toast.success("Usuario eliminado completamente");
+            setUsers(prev => prev.filter(u => u.id !== userId));
+
+        } catch (error: any) {
+            console.error(error);
+            toast.error(error.message || "Ocurrió un error al eliminar");
+        }
+    }
 
     useEffect(() => {
         const fetchUsers = async () => {
@@ -89,7 +140,12 @@ export default function AdminUsersPage() {
                                         </Badge>
                                     </TableCell>
                                     <TableCell>
-                                        <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-destructive hover:bg-destructive/10"
+                                            onClick={() => handleDeleteUser(user.id, user.role)}
+                                        >
                                             <UserX className="w-4 h-4" />
                                         </Button>
                                     </TableCell>
