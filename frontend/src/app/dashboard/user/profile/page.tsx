@@ -8,6 +8,11 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Camera, Loader2, Save } from "lucide-react"
+import { toast } from "sonner"
+import { uploadAvatar, updatePassword as updatePassDB } from "@/lib/supabase-service"
+import { createClient } from "@/lib/supabase/client"
 
 const REGIONS = [
     "CDMX",
@@ -28,7 +33,14 @@ export default function ProfilePage() {
         email: "",
         businessName: "",
         region: "",
+        phone: "",
+        website: "",
     })
+    const [avatarUrl, setAvatarUrl] = useState("")
+    const [isUploading, setIsUploading] = useState(false)
+    const [passwords, setPasswords] = useState({ new: "", confirm: "" })
+    const [isSaving, setIsSaving] = useState(false)
+    const supabase = createClient()
 
     useEffect(() => {
         if (user) {
@@ -38,7 +50,10 @@ export default function ProfilePage() {
                 email: user.email || "",
                 businessName: user.businessName || "",
                 region: user.region || "",
+                phone: user.phone || "",
+                website: user.website || "",
             })
+            setAvatarUrl(user.avatar_url || "")
         }
     }, [user])
 
@@ -56,10 +71,52 @@ export default function ProfilePage() {
         })
     }
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        updateProfile(formData)
-        alert("Perfil actualizado correctamente")
+        setIsSaving(true)
+        try {
+            const fullName = `${formData.name} ${formData.lastname}`.trim()
+            await updateProfile({
+                ...formData,
+                full_name: fullName
+            })
+        } finally {
+            setIsSaving(false)
+        }
+    }
+
+    const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file || !user) return
+
+        setIsUploading(true)
+        try {
+            const url = await uploadAvatar(supabase, user.id, file)
+            setAvatarUrl(url)
+            await updateProfile({ avatar_url: url })
+        } catch (error) {
+            console.error(error)
+        } finally {
+            setIsUploading(false)
+        }
+    }
+
+    const handlePasswordUpdate = async () => {
+        if (passwords.new !== passwords.confirm) {
+            return toast.error("Las contraseñas no coinciden")
+        }
+        if (passwords.new.length < 6) {
+            return toast.error("La contraseña debe tener al menos 6 caracteres")
+        }
+
+        setIsSaving(true)
+        try {
+            await updatePassDB(supabase, passwords.new)
+            toast.success("Contraseña actualizada")
+            setPasswords({ new: "", confirm: "" })
+        } finally {
+            setIsSaving(false)
+        }
     }
 
     if (!user) {
@@ -83,7 +140,34 @@ export default function ProfilePage() {
                             </CardDescription>
                         </CardHeader>
                         <form onSubmit={handleSubmit}>
-                            <CardContent className="space-y-4">
+                            <CardContent className="space-y-6">
+                                {/* Avatar Upload */}
+                                <div className="flex flex-col items-center gap-4 mb-6">
+                                    <div className="relative group">
+                                        <Avatar className="h-24 w-24 border-2 border-primary/10">
+                                            <AvatarImage src={avatarUrl} />
+                                            <AvatarFallback className="text-xl bg-primary/5">
+                                                {user.name?.[0]}{user.lastname?.[0]}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <label
+                                            htmlFor="avatar-upload"
+                                            className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                                        >
+                                            {isUploading ? <Loader2 className="h-6 w-6 text-white animate-spin" /> : <Camera className="h-6 w-6 text-white" />}
+                                            <input
+                                                id="avatar-upload"
+                                                type="file"
+                                                accept="image/*"
+                                                className="hidden"
+                                                onChange={handleAvatarUpload}
+                                                disabled={isUploading}
+                                            />
+                                        </label>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground font-medium">Click para cambiar foto de perfil</p>
+                                </div>
+
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="name">Nombre</Label>
@@ -96,7 +180,18 @@ export default function ProfilePage() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="email">Correo Electrónico</Label>
-                                    <Input id="email" type="email" value={formData.email} onChange={handleChange} />
+                                    <Input id="email" type="email" value={formData.email} disabled className="bg-muted" />
+                                    <p className="text-[10px] text-muted-foreground">El correo no puede ser modificado por seguridad.</p>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="phone">Teléfono de Contacto</Label>
+                                        <Input id="phone" value={formData.phone} onChange={handleChange} placeholder="+52 ..." />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="website">Sitio Web / Enlace</Label>
+                                        <Input id="website" value={formData.website} onChange={handleChange} placeholder="https://..." />
+                                    </div>
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="region">Región</Label>
@@ -119,7 +214,10 @@ export default function ProfilePage() {
                                 )}
                             </CardContent>
                             <CardFooter>
-                                <Button type="submit">Guardar Cambios</Button>
+                                <Button type="submit" disabled={isSaving}>
+                                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                                    Guardar Cambios
+                                </Button>
                             </CardFooter>
                         </form>
                     </Card>
@@ -134,16 +232,31 @@ export default function ProfilePage() {
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="space-y-2">
-                                <Label htmlFor="new-password">Nueva Contraseña</Label>
-                                <Input id="new-password" type="password" />
+                                <Label htmlFor="new">Nueva Contraseña</Label>
+                                <Input
+                                    id="new"
+                                    type="password"
+                                    value={passwords.new}
+                                    onChange={(e) => setPasswords({ ...passwords, new: e.target.value })}
+                                />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="confirm-password">Confirmar Contraseña</Label>
-                                <Input id="confirm-password" type="password" />
+                                <Label htmlFor="confirm">Confirmar Contraseña</Label>
+                                <Input
+                                    id="confirm"
+                                    type="password"
+                                    value={passwords.confirm}
+                                    onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
+                                />
                             </div>
                         </CardContent>
                         <CardFooter>
-                            <Button>Actualizar Contraseña</Button>
+                            <Button
+                                onClick={handlePasswordUpdate}
+                                disabled={isSaving || !passwords.new}
+                            >
+                                {isSaving ? "Actualizando..." : "Actualizar Contraseña"}
+                            </Button>
                         </CardFooter>
                     </Card>
                 </TabsContent>

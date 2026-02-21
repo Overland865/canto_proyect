@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react"
 import { Star } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { getServiceReviews, getAverageRating } from "@/lib/supabase-service"
+import { createClient } from "@/lib/supabase/client"
 
 interface Review {
     id: number
@@ -24,17 +26,17 @@ export default function ReviewsList({ serviceId }: ReviewsListProps) {
     const [averageRating, setAverageRating] = useState(0)
     const [isLoading, setIsLoading] = useState(true)
 
+    const supabase = createClient()
+
     useEffect(() => {
         const fetchReviews = async () => {
             try {
-                const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000'
-                const response = await fetch(`${backendUrl}/reviews/service/${serviceId}`)
-                const data = await response.json()
-
-                if (data.success) {
-                    setReviews(data.data)
-                    setAverageRating(data.averageRating)
-                }
+                const [reviewsData, avg] = await Promise.all([
+                    getServiceReviews(supabase, String(serviceId)),
+                    getAverageRating(supabase, String(serviceId))
+                ])
+                setReviews(reviewsData as Review[])
+                setAverageRating(avg)
             } catch (err) {
                 console.error("Error fetching reviews:", err)
             } finally {

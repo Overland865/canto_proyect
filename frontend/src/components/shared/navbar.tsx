@@ -6,6 +6,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Menu, User as UserIcon, Home } from "lucide-react"
 import { useAuth } from "@/context/auth-context"
 import { CartSheet } from "@/components/shared/cart-sheet"
+import { NotificationBell } from "@/components/shared/notification-bell"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -103,6 +104,7 @@ export function Navbar() {
             {/* Search bar placeholder */}
           </div>
           <nav className="flex items-center gap-2">
+            <NotificationBell />
             <CartSheet />
             {isAuthenticated ? (
               <DropdownMenu>

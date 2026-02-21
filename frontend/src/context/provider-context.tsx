@@ -20,6 +20,9 @@ export type Service = {
     rating?: number
     reviews?: number
     verified?: boolean
+    providerAvatar?: string
+    businessName?: string
+    contactPhone?: string
 }
 
 type ProviderContextType = {
@@ -43,11 +46,14 @@ export type Booking = {
     clientName: string
     date: string
     time: string
-    status: "pending" | "confirmed" | "rejected" | "completed" | "rescheduled"
+    status: "pending" | "confirmed" | "rejected" | "completed" | "rescheduled" | "cancellation_requested" | "cancelled"
     amount: number
     guests: number
     specifications?: string
     proposedDate?: string
+    cancellationReason?: string
+    cancelledBy?: string
+    cancelledAt?: string
 }
 
 
@@ -71,7 +77,8 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
                 profiles!inner (
                     status,
                     full_name,
-                    phone
+                    phone,
+                    avatar_url
                 )
             `)
             .eq('profiles.status', 'approved')
@@ -96,11 +103,12 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
                 items: [],
                 image: s.image || s.image_url || "https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=2070&auto=format&fit=crop",
                 gallery: s.gallery || [],
-                rating: 0,
-                reviews: 0,
+                rating: s.rating || 0,
+                reviews: s.reviews || 0,
                 verified: s.is_verified,
                 businessName: s.profiles?.full_name,
-                contactPhone: s.profiles?.phone
+                contactPhone: s.profiles?.phone,
+                providerAvatar: s.profiles?.avatar_url || ""
             }))
 
             const finalServices = mappedServices.map((s: any) => ({
@@ -136,7 +144,10 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
                 amount: b.total_price || 0,
                 guests: b.guests,
                 specifications: b.specifications,
-                proposedDate: b.proposed_date
+                proposedDate: b.proposed_date,
+                cancellationReason: b.cancellation_reason,
+                cancelledBy: b.cancelled_by,
+                cancelledAt: b.cancelled_at,
             }))
             setBookings(mappedBookings)
         }

@@ -43,6 +43,8 @@ export default function RegisterPage() {
     const [providerEmail, setProviderEmail] = useState("")
     const [providerPassword, setProviderPassword] = useState("")
     const [providerRegion, setProviderRegion] = useState("")
+    const [providerCategory, setProviderCategory] = useState("")
+    const [providerPhone, setProviderPhone] = useState("")
 
     const handleClientRegister = async () => {
         if (!clientName || !clientLastname || !clientEmail || !clientPassword || !clientRegion) {
@@ -77,7 +79,7 @@ export default function RegisterPage() {
     }
 
     const handleProviderRegister = async () => {
-        if (!businessName || !providerEmail || !providerPassword || !providerRegion) {
+        if (!businessName || !providerEmail || !providerPassword || !providerRegion || !providerCategory || !providerPhone) {
             toast.error("Por favor completa todos los campos")
             return
         }
@@ -91,7 +93,9 @@ export default function RegisterPage() {
                 email: providerEmail,
                 password: providerPassword,
                 role: "provider",
-                region: providerRegion
+                region: providerRegion,
+                category: providerCategory,
+                phone: providerPhone
             })
 
             if (result && result.needsVerification) {
@@ -264,6 +268,33 @@ export default function RegisterPage() {
                                     ))}
                                 </SelectContent>
                             </Select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="category-provider">Categoría</Label>
+                                <Select onValueChange={setProviderCategory} value={providerCategory}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Giro" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Locales">Locales</SelectItem>
+                                        <SelectItem value="Banquetes">Banquetes</SelectItem>
+                                        <SelectItem value="Música">Música</SelectItem>
+                                        <SelectItem value="Decoración">Decoración</SelectItem>
+                                        <SelectItem value="Foto y Video">Foto y Video</SelectItem>
+                                        <SelectItem value="Otros">Otros</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="phone-provider">WhatsApp</Label>
+                                <Input
+                                    id="phone-provider"
+                                    placeholder="10 dígitos"
+                                    value={providerPhone}
+                                    onChange={(e) => setProviderPhone(e.target.value)}
+                                />
+                            </div>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="password-provider">Contraseña</Label>

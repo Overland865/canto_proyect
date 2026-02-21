@@ -14,6 +14,8 @@ import { cn } from "@/lib/utils"
 import { useAuth } from "@/context/auth-context"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
+import EventContextModal from "@/components/shared/event-context-modal"
+import { createBookingExpanded } from "@/lib/supabase-service"
 
 interface ServiceBookingCardProps {
     price: number
@@ -31,21 +33,30 @@ export function ServiceBookingCard({ price, unit, category, serviceId, providerI
     const [notes, setNotes] = useState("")
     const [loading, setLoading] = useState(false)
     const [blockedDates, setBlockedDates] = useState<Date[]>([])
+    const [isEventModalOpen, setIsEventModalOpen] = useState(false)
 
     const supabase = createClient()
 
     useEffect(() => {
         const fetchAvailability = async () => {
-            const { data } = await supabase
+            // Blocked by provider
+            const { data: blockedData } = await supabase
                 .from('provider_availability')
                 .select('date')
                 .eq('provider_id', providerId)
                 .eq('status', 'blocked')
 
-            if (data) {
-                const dates = data.map((d: any) => new Date(d.date))
-                setBlockedDates(dates)
-            }
+            // Already booked
+            const { data: bookingsData } = await supabase
+                .from('bookings')
+                .select('date')
+                .eq('provider_id', providerId)
+                .in('status', ['confirmed', 'completed'])
+
+            const blocked = (blockedData || []).map((d: any) => new Date(d.date))
+            const booked = (bookingsData || []).map((d: any) => new Date(d.date))
+
+            setBlockedDates([...blocked, ...booked])
         }
         if (providerId) fetchAvailability()
     }, [providerId, supabase])
@@ -61,18 +72,26 @@ export function ServiceBookingCard({ price, unit, category, serviceId, providerI
             return
         }
 
+        setIsEventModalOpen(true)
+    }
+
+    const handleConfirmBooking = async (eventContext: any) => {
+        setIsEventModalOpen(false)
         setLoading(true)
 
         try {
-            const { data, error } = await supabase.rpc('create_booking', {
-                p_provider_id: providerId,
-                p_service_id: parseInt(serviceId),
-                p_date: date.toISOString(),
-                p_total_price: price,
-                p_notes: notes
+            await createBookingExpanded(supabase, {
+                service_id: serviceId,
+                provider_id: providerId,
+                client_id: user!.id,
+                date: date!.toISOString(),
+                total_price: price,
+                event_name: eventContext.eventName,
+                guests: eventContext.guests,
+                location: eventContext.location,
+                event_time: eventContext.eventTime,
+                status: "pending"
             })
-
-            if (error) throw error
 
             toast.success("Solicitud enviada con éxito", {
                 description: "El proveedor revisará tu solicitud."
@@ -182,6 +201,13 @@ export function ServiceBookingCard({ price, unit, category, serviceId, providerI
                     No se realizará ningún cargo hasta que el proveedor acepte tu solicitud.
                 </p>
             </CardContent>
+
+            <EventContextModal
+                open={isEventModalOpen}
+                onClose={() => setIsEventModalOpen(false)}
+                onConfirm={handleConfirmBooking}
+                serviceName={serviceName}
+            />
         </Card>
     )
 }
