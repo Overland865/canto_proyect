@@ -9,6 +9,7 @@ import { useAuth } from "@/context/auth-context"
 import { toast } from "sonner"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
+import { getProviderBlockedDates, getProviderBookedDates, toggleProviderBlockedDate } from "@/lib/supabase-service"
 
 export function AvailabilityCalendar() {
     const { user } = useAuth()
@@ -19,34 +20,14 @@ export function AvailabilityCalendar() {
 
     const fetchData = async () => {
         if (!user) return
-
-        // Fetch Blocked Dates
-        const { data: blockedData, error: blockedError } = await supabase
-            .from('provider_availability')
-            .select('date')
-            .eq('provider_id', user.id)
-            .eq('status', 'blocked')
-
-        if (blockedData) {
-            setBlockedDates(blockedData.map((d: any) => new Date(d.date))) // These are strings like "2024-01-01" or timestamps, date constructor handles iso strings usually. DB checks might be needed if date type is date only.
-            // Supabase date column returns YYYY-MM-DD string. new Date("YYYY-MM-DD") works but might be UTC or local depending on browser. 
-            // Ideally we need to be careful with timezones. Best is to handle everything as UTC or use date-fns parse.
-            // For simplicity in this demo, blocked dates are full days.
-            // Using new Date(d.date + 'T12:00:00') helps avoid timezone shifts if running locally.
-            // Or just parsing the string components.
-            // Let's assume standard ISO for now.
-            setBlockedDates(blockedData.map((d: any) => new Date(d.date + "T12:00:00")))
-        }
-
-        // Fetch Confirmed Bookings
-        const { data: bookedData, error: bookedError } = await supabase
-            .from('bookings')
-            .select('date')
-            .eq('provider_id', user.id)
-            .eq('status', 'confirmed')
-
-        if (bookedData) {
-            setBookedDates(bookedData.map((d: any) => new Date(d.date)))
+        try {
+            const blocked = await getProviderBlockedDates(supabase, user.id)
+            const booked = await getProviderBookedDates(supabase, user.id)
+            setBlockedDates(blocked)
+            setBookedDates(booked)
+        } catch (error) {
+            console.error("Error fetching availability:", error)
+            toast.error("Error al cargar disponibilidad")
         }
     }
 
@@ -58,8 +39,6 @@ export function AvailabilityCalendar() {
         if (!user) return
         setLoading(true)
 
-        // Check if date is blocked or booked
-        // Simple equality check is tricky with dates. Compare ISO strings YYYY-MM-DD.
         const dateStr = format(day, "yyyy-MM-dd")
 
         // Check if booked (Priority)
@@ -70,33 +49,9 @@ export function AvailabilityCalendar() {
             return
         }
 
-        // Check if blocked
-        const isBlocked = blockedDates.some(d => format(d, "yyyy-MM-dd") === dateStr)
-
         try {
-            if (isBlocked) {
-                // Unblock: Delete from DB
-                const { error } = await supabase
-                    .from('provider_availability')
-                    .delete()
-                    .eq('provider_id', user.id)
-                    .eq('date', dateStr)
-
-                if (error) throw error
-                toast.success("Día desbloqueado")
-            } else {
-                // Block: Insert into DB
-                const { error } = await supabase
-                    .from('provider_availability')
-                    .insert({
-                        provider_id: user.id,
-                        date: dateStr,
-                        status: 'blocked'
-                    })
-
-                if (error) throw error
-                toast.success("Día bloqueado")
-            }
+            const nowBlocked = await toggleProviderBlockedDate(supabase, user.id, dateStr)
+            toast.success(nowBlocked ? "Día bloqueado" : "Día desbloqueado")
             await fetchData() // Refresh
         } catch (error: any) {
             console.error(error)

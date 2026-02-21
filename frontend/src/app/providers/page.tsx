@@ -1,73 +1,66 @@
 
-"use client"
-
-import { useState, useEffect } from "react"
 import Link from "next/link"
-import { createClient } from "@/lib/supabase/client"
+import { createClient } from "@/lib/supabase/server"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { MapPin, Star, ShieldCheck, ArrowRight, Loader2 } from "lucide-react"
+import { MapPin, Star, ShieldCheck, ArrowRight } from "lucide-react"
+import { Metadata } from 'next'
 
-export default function ProvidersPage() {
-    const [providers, setProviders] = useState<any[]>([])
-    const [loading, setLoading] = useState(true)
-    const supabase = createClient()
+export const metadata: Metadata = {
+    title: 'Proveedores Verificados | LocalSpace',
+    description: 'Conoce a las empresas y profesionales detrás de los mejores eventos. Calidad garantizada por LocalSpace.',
+}
 
-    useEffect(() => {
-        const fetchProviders = async () => {
-            try {
-                // 1. Fetch approved profiles
-                const { data: profiles, error } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('role', 'provider')
-                    .eq('status', 'approved')
-                    .order('created_at', { ascending: false })
+async function getProviders() {
+    const supabase = await createClient()
 
-                if (error) throw error
+    // 1. Fetch approved profiles
+    const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('role', 'provider')
+        .eq('status', 'approved')
+        .order('created_at', { ascending: false })
 
-                // 2. Fetch business details
-                const { data: details } = await supabase.from('provider_profiles').select('*')
-                const detailsMap = new Map(details?.map((d: any) => [d.id, d]) || [])
+    if (error) {
+        console.error("Error loading providers:", error)
+        return []
+    }
 
-                // 3. Merge data
-                const merged = profiles.map((p: any) => {
-                    const detail = detailsMap.get(p.id)
+    // 2. Fetch business details
+    const { data: details } = await supabase.from('provider_profiles').select('*')
+    const detailsMap = new Map(details?.map((d: any) => [d.id, d]) || [])
 
-                    // Manejo de imágenes: gallery > cover_image > avatar_url > default
-                    let providerImages = ["https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=2070&auto=format&fit=crop"];
-                    if (p.gallery && p.gallery.length > 0) {
-                        providerImages = p.gallery;
-                    } else if (p.cover_image) {
-                        providerImages = [p.cover_image];
-                    } else if (p.avatar_url) {
-                        providerImages = [p.avatar_url];
-                    }
+    // 3. Merge data
+    return profiles.map((p: any) => {
+        const detail = detailsMap.get(p.id)
 
-                    return {
-                        id: p.id,
-                        name: detail?.business_name || p.full_name, // Prefer business name
-                        description: p.description || detail?.description || "Sin descripción disponible.",
-                        location: detail?.location || "Mérida, Yucatán", // Fallback location
-                        rating: detail?.rating || 5.0, // Default rating if new
-                        verified: p.is_verified || false,
-                        images: providerImages,
-                        categories: detail?.categories || ["Servicios"]
-                    }
-                })
-
-                setProviders(merged)
-
-            } catch (err) {
-                console.error("Error loading providers:", err)
-            } finally {
-                setLoading(false)
-            }
+        // Manejo de imágenes: gallery > cover_image > avatar_url > default
+        let providerImages = ["https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=2070&auto=format&fit=crop"];
+        if (p.gallery && p.gallery.length > 0) {
+            providerImages = p.gallery;
+        } else if (p.cover_image) {
+            providerImages = [p.cover_image];
+        } else if (p.avatar_url) {
+            providerImages = [p.avatar_url];
         }
 
-        fetchProviders()
-    }, [])
+        return {
+            id: p.id,
+            name: detail?.business_name || p.full_name, // Prefer business name
+            description: p.description || detail?.description || "Sin descripción disponible.",
+            location: detail?.location || "Mérida, Yucatán", // Fallback location
+            rating: detail?.rating || 5.0, // Default rating if new
+            verified: p.is_verified || false,
+            images: providerImages,
+            categories: detail?.categories || ["Servicios"]
+        }
+    })
+}
+
+export default async function ProvidersPage() {
+    const providers = await getProviders()
 
     return (
         <div className="container py-12 relative">
@@ -84,11 +77,7 @@ export default function ProvidersPage() {
                 </p>
             </div>
 
-            {loading ? (
-                <div className="flex justify-center py-20">
-                    <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                </div>
-            ) : providers.length === 0 ? (
+            {providers.length === 0 ? (
                 <div className="text-center py-20 text-muted-foreground">
                     <p>No hay proveedores activos en este momento.</p>
                 </div>
@@ -135,9 +124,9 @@ export default function ProvidersPage() {
                                     <span className="flex items-center">
                                         <MapPin className="w-4 h-4 mr-1" /> {provider.location}
                                     </span>
-                                    <Button variant="ghost" size="sm" className="group-hover:translate-x-1 transition-transform p-0 hover:bg-transparent">
+                                    <div className="flex items-center group-hover:translate-x-1 transition-transform p-0 hover:bg-transparent text-sm font-medium text-primary">
                                         Ver Perfil <ArrowRight className="w-4 h-4 ml-1" />
-                                    </Button>
+                                    </div>
                                 </CardFooter>
                             </Card>
                         </Link>
@@ -147,3 +136,4 @@ export default function ProvidersPage() {
         </div>
     )
 }
+
