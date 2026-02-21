@@ -198,7 +198,7 @@ export default function UserDashboardPage() {
                                 {/* Formulario de reseña para reservas completadas */}
                                 {booking.status === 'completed' && !booking.has_review && (
                                     <div className="w-full mt-3">
-                                        <ReviewForm bookingId={booking.id} onReviewSubmitted={fetchBookings} />
+                                        <ReviewForm bookingId={booking.id} serviceId={booking.service_id} providerId={booking.provider_id} onReviewSubmitted={fetchBookings} />
                                     </div>
                                 )}
                             </div>
