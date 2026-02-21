@@ -1,6 +1,6 @@
 "use client"
 
-import React, { createContext, useContext, useState, useEffect } from "react"
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
@@ -37,7 +37,83 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null)
     const [authError, setAuthError] = useState<string | null>(null)
     const router = useRouter()
-    const supabase = createClient()
+    const supabase = useMemo(() => createClient(), [])
+
+    const fetchProfile = useCallback(async (userId: string, email: string) => {
+        try {
+            setAuthError(null)
+            // Fetch basic profile
+            const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
+                .maybeSingle()
+
+            if (error) throw error
+
+            let currentProfile = profile
+
+            // Self-healing: If profile missing (triggers failed), create it
+            if (!currentProfile) {
+                console.warn("Profile missing for user, attempting creation...")
+                // Default status for new users can be handled here or by DB default
+                const { data: newProfile, error: createError } = await supabase
+                    .from('profiles')
+                    .upsert({
+                        id: userId,
+                        email: email,
+                        full_name: email.split('@')[0], // Fallback name
+                        role: 'consumer' // Default role
+                    })
+                    .select()
+                    .single()
+
+                if (createError) throw createError
+                currentProfile = newProfile
+            }
+
+            if (!currentProfile) throw new Error("Could not load or create profile")
+
+            const extendedUser: User = {
+                id: userId,
+                name: currentProfile.full_name?.split(' ')[0] || '',
+                lastname: currentProfile.full_name?.split(' ').slice(1).join(' ') || '',
+                full_name: currentProfile.full_name || '',
+                email: email,
+                role: currentProfile.role,
+                region: currentProfile.region,
+                phone: currentProfile.phone || '',
+                website: currentProfile.website || '',
+                avatar_url: currentProfile.avatar_url || '',
+            }
+
+            // If provider, fetch provider details
+            if (currentProfile.role === 'provider') {
+                const { data: providerData, error: providerError } = await supabase
+                    .from('provider_profiles')
+                    .select('business_name, status')
+                    .eq('id', userId)
+                    .maybeSingle()
+
+                if (providerError) {
+                    console.warn("Error fetching provider profile:", providerError)
+                }
+
+                if (providerData) {
+                    extendedUser.businessName = providerData.business_name
+                    extendedUser.status = providerData.status
+                }
+            }
+
+            setUser(extendedUser)
+        } catch (error: any) {
+            console.error("Error fetching profile:", error)
+            setAuthError("Profile Fetch Error: " + (error.message || JSON.stringify(error)))
+            setUser(null)
+        }
+    }, [supabase])
+
+
 
     useEffect(() => {
         // Check active session
@@ -71,79 +147,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return () => {
             subscription.unsubscribe()
         }
-    }, [])
+    }, [supabase, fetchProfile])
 
-    const fetchProfile = async (userId: string, email: string) => {
-        try {
-            setAuthError(null)
-            // Fetch basic profile
-            let { data: profile, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', userId)
-                .maybeSingle()
-
-            if (error) throw error
-
-            // Self-healing: If profile missing (triggers failed), create it
-            if (!profile) {
-                console.warn("Profile missing for user, attempting creation...")
-                // Default status for new users can be handled here or by DB default
-                const { data: newProfile, error: createError } = await supabase
-                    .from('profiles')
-                    .upsert({
-                        id: userId,
-                        email: email,
-                        full_name: email.split('@')[0], // Fallback name
-                        role: 'consumer' // Default role
-                    })
-                    .select()
-                    .single()
-
-                if (createError) throw createError
-                profile = newProfile
-            }
-
-            if (!profile) throw new Error("Could not load or create profile")
-
-            let extendedUser: User = {
-                id: userId,
-                name: profile.full_name?.split(' ')[0] || '',
-                lastname: profile.full_name?.split(' ').slice(1).join(' ') || '',
-                full_name: profile.full_name || '',
-                email: email,
-                role: profile.role,
-                region: profile.region,
-                phone: profile.phone || '',
-                website: profile.website || '',
-                avatar_url: profile.avatar_url || '',
-            }
-
-            // If provider, fetch provider details
-            if (profile.role === 'provider') {
-                const { data: providerData, error: providerError } = await supabase
-                    .from('provider_profiles')
-                    .select('business_name, status')
-                    .eq('id', userId)
-                    .maybeSingle()
-
-                if (providerError) {
-                    console.warn("Error fetching provider profile:", providerError)
-                }
-
-                if (providerData) {
-                    extendedUser.businessName = providerData.business_name
-                    extendedUser.status = providerData.status
-                }
-            }
-
-            setUser(extendedUser)
-        } catch (error: any) {
-            console.error("Error fetching profile:", error)
-            setAuthError("Profile Fetch Error: " + (error.message || JSON.stringify(error)))
-            setUser(null)
-        }
-    }
 
     const login = async ({ email, password }: any) => {
         const { data, error } = await supabase.auth.signInWithPassword({

@@ -20,16 +20,22 @@ import { LocationMap } from "@/components/marketplace/location-map"
 
 export function ServiceDetailContent({ id }: { id: string }) {
     const { getAllServices } = useProvider()
-    const [service, setService] = useState<any>(null)
-    const [loading, setLoading] = useState(true)
+    const [service, setService] = useState<any>(() => {
+        const found = getAllServices().find(s => s.id === id)
+        return found || null
+    })
+    const [loading, setLoading] = useState(!service)
     const [guestCount, setGuestCount] = useState<number>(0)
 
     useEffect(() => {
-        const services = getAllServices()
-        const found = services.find(s => s.id === id)
-        setService(found)
-        setLoading(false)
-    }, [id, getAllServices])
+        if (!service) {
+            const found = getAllServices().find(s => s.id === id)
+            if (found) {
+                setService(found)
+                setLoading(false)
+            }
+        }
+    }, [id, getAllServices, service])
 
     if (loading) return <div className="p-10 text-center">Cargando...</div>
 

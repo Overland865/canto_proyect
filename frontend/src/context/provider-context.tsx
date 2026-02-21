@@ -1,6 +1,6 @@
 "use client"
 
-import React, { createContext, useContext, useState, useEffect } from "react"
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react"
 import { useAuth } from "./auth-context"
 import { createClient } from "@/lib/supabase/client"
 
@@ -65,61 +65,67 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
     const [services, setServices] = useState<Service[]>([])
     const [bookings, setBookings] = useState<Booking[]>([])
     const [isLoading, setIsLoading] = useState(true)
-    const supabase = createClient()
+    const supabase = useMemo(() => createClient(), [])
 
-    const fetchServices = async () => {
+
+    const fetchServices = useCallback(async () => {
         console.log("Fetching services...")
+        setIsLoading(true)
 
-        const { data, error } = await supabase
-            .from('services')
-            .select(`
-                *,
-                profiles!inner (
-                    status,
-                    full_name,
-                    phone,
-                    avatar_url
-                )
-            `)
-            .eq('profiles.status', 'approved')
+        try {
+            const { data, error } = await supabase
+                .from('services')
+                .select(`
+                    *,
+                    profiles!inner (
+                        status,
+                        full_name,
+                        phone,
+                        avatar_url
+                    )
+                `)
+                .eq('profiles.status', 'approved')
 
-        if (error) {
-            console.error("Error fetching services:", error)
-            return
+            if (error) {
+                console.error("Error fetching services:", error)
+                return
+            }
+
+            if (data) {
+                console.log("Services fetched:", data.length)
+                const mappedServices = data.map((s: any) => ({
+                    id: s.id,
+                    providerId: s.provider_id,
+                    title: s.title,
+                    description: s.description,
+                    category: s.category,
+                    price: s.price,
+                    unit: s.unit || undefined,
+                    location: s.profiles?.full_name || "Ubicación desconocida",
+                    type: "service",
+                    items: [],
+                    image: s.image || s.image_url || "https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=2070&auto=format&fit=crop",
+                    gallery: s.gallery || [],
+                    rating: s.rating || 0,
+                    reviews: s.reviews || 0,
+                    verified: s.is_verified,
+                    businessName: s.profiles?.full_name,
+                    contactPhone: s.profiles?.phone,
+                    providerAvatar: s.profiles?.avatar_url || ""
+                }))
+
+                const finalServices = mappedServices.map((s: any) => ({
+                    ...s,
+                    location: s.businessName || "Online"
+                }))
+                setServices(finalServices)
+            }
+        } finally {
+            setIsLoading(false)
         }
+    }, [supabase])
 
-        if (data) {
-            console.log("Services fetched:", data.length)
-            const mappedServices = data.map((s: any) => ({
-                id: s.id,
-                providerId: s.provider_id,
-                title: s.title,
-                description: s.description,
-                category: s.category,
-                price: s.price,
-                unit: s.unit || undefined,
-                location: s.profiles?.full_name || "Ubicación desconocida",
-                type: "service",
-                items: [],
-                image: s.image || s.image_url || "https://images.unsplash.com/photo-1519225421980-715cb0215aed?q=80&w=2070&auto=format&fit=crop",
-                gallery: s.gallery || [],
-                rating: s.rating || 0,
-                reviews: s.reviews || 0,
-                verified: s.is_verified,
-                businessName: s.profiles?.full_name,
-                contactPhone: s.profiles?.phone,
-                providerAvatar: s.profiles?.avatar_url || ""
-            }))
-
-            const finalServices = mappedServices.map((s: any) => ({
-                ...s,
-                location: s.businessName || "Online"
-            }))
-            setServices(finalServices)
-        }
-    }
-
-    const fetchBookings = async () => {
+    const fetchBookings = useCallback(async () => {
         if (!user || user.role !== 'provider') return
 
         const { data, error } = await supabase
@@ -130,6 +136,11 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
                 services:service_id (title)
             `)
             .eq('provider_id', user.id)
+
+        if (error) {
+            console.error("Error fetching bookings:", error)
+            return
+        }
 
         if (data) {
             const mappedBookings: Booking[] = data.map((b: any) => ({
@@ -151,7 +162,7 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
             }))
             setBookings(mappedBookings)
         }
-    }
+    }, [user, supabase])
 
     const updateBookingStatus = async (id: string, status: Booking["status"], proposedDate?: Date) => {
         const updateData: any = { status }
@@ -171,7 +182,7 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         fetchServices()
-    }, [])
+    }, [fetchServices])
 
     useEffect(() => {
         if (user) {
@@ -185,17 +196,16 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
                     schema: 'public',
                     table: 'bookings',
                     filter: `provider_id=eq.${user.id}`
-                }, (payload) => {
+                }, () => {
                     fetchBookings() // Refresh on change
                 })
                 .subscribe()
-
 
             return () => {
                 supabase.removeChannel(channel)
             }
         }
-    }, [user])
+    }, [user, fetchBookings, supabase])
 
 
 

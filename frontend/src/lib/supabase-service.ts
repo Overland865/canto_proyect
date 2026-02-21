@@ -217,6 +217,80 @@ export async function isFavorite(
 }
 
 /**
+ * Obtiene las fechas bloqueadas manualmente por el proveedor.
+ */
+export async function getProviderBlockedDates(
+    supabase: SupabaseClient,
+    providerId: string
+): Promise<Date[]> {
+    const { data, error } = await supabase
+        .from("provider_availability")
+        .select("date")
+        .eq("provider_id", providerId)
+        .eq("status", "blocked")
+
+    if (error) throw error
+    return (data || []).map((d: { date: string }) => new Date(d.date + "T12:00:00"))
+}
+
+/**
+ * Obtiene las fechas con reservas confirmadas para el proveedor.
+ */
+export async function getProviderBookedDates(
+    supabase: SupabaseClient,
+    providerId: string
+): Promise<Date[]> {
+    const { data, error } = await supabase
+        .from("bookings")
+        .select("date")
+        .eq("provider_id", providerId)
+        .eq("status", "confirmed")
+
+    if (error) throw error
+    return (data || []).map((d: { date: string }) => new Date(d.date))
+}
+
+/**
+ * Bloquea o desbloquea una fecha para el proveedor.
+ * Retorna true si queda bloqueado, false si queda desbloqueado.
+ */
+export async function toggleProviderBlockedDate(
+    supabase: SupabaseClient,
+    providerId: string,
+    date: string
+): Promise<boolean> {
+    // Check if already blocked
+    const { data: existing } = await supabase
+        .from("provider_availability")
+        .select("id")
+        .eq("provider_id", providerId)
+        .eq("date", date)
+        .eq("status", "blocked")
+        .maybeSingle()
+
+    if (existing) {
+        // Unblock
+        const { error } = await supabase
+            .from("provider_availability")
+            .delete()
+            .eq("id", existing.id)
+        if (error) throw error
+        return false
+    } else {
+        // Block
+        const { error } = await supabase
+            .from("provider_availability")
+            .insert({
+                provider_id: providerId,
+                date: date,
+                status: "blocked"
+            })
+        if (error) throw error
+        return true
+    }
+}
+
+/**
  * Obtiene todos los favoritos del usuario con join a services.
  */
 export async function getFavorites(
