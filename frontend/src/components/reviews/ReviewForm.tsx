@@ -6,19 +6,28 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Star } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/context/auth-context"
+import { submitReview } from "@/lib/supabase-service"
 
 interface ReviewFormProps {
     bookingId: number | string
+    serviceId: number | string
+    providerId: string
     onReviewSubmitted?: () => void
 }
 
-export default function ReviewForm({ bookingId, onReviewSubmitted }: ReviewFormProps) {
+export default function ReviewForm({
+    bookingId,
+    serviceId,
+    providerId,
+    onReviewSubmitted
+}: ReviewFormProps) {
     const [rating, setRating] = useState(0)
     const [hoveredRating, setHoveredRating] = useState(0)
     const [comment, setComment] = useState("")
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [submitted, setSubmitted] = useState(false)
     const [error, setError] = useState("")
+    const { user } = useAuth()
     const supabase = createClient()
 
     const handleSubmit = async () => {
@@ -31,28 +40,22 @@ export default function ReviewForm({ bookingId, onReviewSubmitted }: ReviewFormP
         setError("")
 
         try {
-            const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000'
-            const session = await supabase.auth.getSession()
-            const token = session.data.session?.access_token
+            if (!user) throw new Error("Debes iniciar sesión para calificar")
 
-            const response = await fetch(`${backendUrl}/reviews`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    booking_id: bookingId,
-                    rating,
-                    comment: comment.trim() || null
-                })
+            // Get service_id and provider_id from booking if possible, 
+            // but for now we rely on the implementation plan's requirement of direct submission.
+            // Assuming bookingId is enough for the service to find related IDs if needed, 
+            // but the MOBILE app likely sends service_id and provider_id.
+            // For now, let's stick to the simplest submission using what we have.
+
+            await submitReview(supabase, {
+                booking_id: String(bookingId),
+                service_id: String(serviceId),
+                provider_id: providerId,
+                client_id: user.id,
+                rating,
+                comment: comment.trim() || null
             })
-
-            const data = await response.json()
-
-            if (!response.ok) {
-                throw new Error(data.error || "Error al enviar reseña")
-            }
 
             setSubmitted(true)
             onReviewSubmitted?.()

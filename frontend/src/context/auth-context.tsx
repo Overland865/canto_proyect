@@ -11,9 +11,13 @@ type User = {
     lastname: string
     email: string
     role: "consumer" | "provider" | "admin"
-    status?: string // Added status
+    status?: string
     businessName?: string
     region?: string
+    full_name?: string
+    phone?: string
+    website?: string
+    avatar_url?: string
 }
 
 type AuthContextType = {
@@ -22,7 +26,7 @@ type AuthContextType = {
     login: (params: any) => Promise<void>
     register: (params: any) => Promise<{ needsVerification: boolean; email?: string } | void>
     logout: () => Promise<void>
-    updateProfile: (userData: Partial<User>) => void
+    updateProfile: (userData: Partial<User>) => Promise<void>
     authError: string | null
     verifyOtp: (email: string, token: string, type: "signup" | "email") => Promise<void>
 }
@@ -106,9 +110,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 id: userId,
                 name: profile.full_name?.split(' ')[0] || '',
                 lastname: profile.full_name?.split(' ').slice(1).join(' ') || '',
+                full_name: profile.full_name || '',
                 email: email,
                 role: profile.role,
                 region: profile.region,
+                phone: profile.phone || '',
+                website: profile.website || '',
+                avatar_url: profile.avatar_url || '',
             }
 
             // If provider, fetch provider details
@@ -198,7 +206,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const register = async (userData: any) => {
-        const { email, password, name, lastname, role, businessName, region } = userData
+        const { email, password, name, lastname, role, businessName, region, category, phone } = userData
         const fullName = `${name} ${lastname}`.trim()
 
         // 1. SignUp
@@ -209,6 +217,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 data: {
                     full_name: fullName,
                     role: role,
+                    category: category,
+                    phone: phone,
+                    region: region
                 }
             }
         })
@@ -218,18 +229,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Store metadata for later profile creation if verifying
         if (data.user && !data.session) {
-            // Email confirmation enabled.
-            // We return here to let the UI show the verification step.
             return { needsVerification: true, email: email }
         }
 
         try {
-            await handleProfileCreation(data.user.id, email, fullName, role, businessName)
+            await handleProfileCreation(data.user.id, email, fullName, role, businessName, region, category, phone)
 
             toast.success("Cuenta creada exitosamente")
 
             if (role === 'provider') {
-                // New providers are pending by default
                 toast.info("Tu solicitud de proveedor ha sido enviada.", {
                     description: "Un administrador revisará tu cuenta pronto."
                 })
@@ -241,7 +249,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         } catch (dbError) {
             console.error("Database error during registration:", dbError)
-            // User created in Auth but DB setup failed
         }
     }
 
@@ -258,9 +265,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Ensure profile exists after verification
             const fullName = data.user.user_metadata.full_name || "Usuario"
             const role = data.user.user_metadata.role || "consumer"
-            const businessName = data.user.user_metadata.business_name // Might not be there if not passed in meta
+            const businessName = data.user.user_metadata.business_name
+            const region = data.user.user_metadata.region
+            const category = data.user.user_metadata.category
+            const phone = data.user.user_metadata.phone
 
-            await handleProfileCreation(data.user.id, data.user.email!, fullName, role) // businessName might need extra handling but profile usually created by trigger
+            await handleProfileCreation(data.user.id, data.user.email!, fullName, role, businessName, region, category, phone)
 
             toast.success("Correo verificado exitosamente")
             if (role === 'provider') {
@@ -271,7 +281,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }
 
-    const handleProfileCreation = async (userId: string, email: string, fullName: string, role: string, businessName?: string) => {
+    const handleProfileCreation = async (
+        userId: string,
+        email: string,
+        fullName: string,
+        role: string,
+        businessName?: string,
+        region?: string,
+        category?: string,
+        phone?: string
+    ) => {
         // 2. Wait for Profile Creation (handled by DB trigger)
         let profileCreated = false
         // Poll for 3 seconds (15 attempts * 200ms)
@@ -298,7 +317,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     id: userId,
                     email: email,
                     full_name: fullName,
-                    role: role
+                    role: role,
+                    region: region,
+                    phone: phone
                 })
         }
 
@@ -313,6 +334,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     .insert({
                         id: userId,
                         business_name: businessName || "Negocio sin nombre",
+                        category: category || "Otros",
+                        phone: phone || null,
+                        status: 'pending'
                     })
                 if (providerError) console.error("Provider profile error:", providerError)
             }
@@ -331,9 +355,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }
 
-    const updateProfile = (userData: Partial<User>) => {
-        // Implementation for updating profile can be added later
-        console.log("Update profile not yet fully implemented", userData)
+    const updateProfile = async (userData: Partial<User>) => {
+        if (!user) return
+        try {
+            const { updateProfileDB } = await import("@/lib/supabase-service")
+            await updateProfileDB(supabase, user.id, userData)
+
+            // UI state update
+            setUser(prev => prev ? { ...prev, ...userData } : null)
+            toast.success("Perfil actualizado")
+        } catch (error: any) {
+            console.error("Error updating profile:", error)
+            toast.error("Error al actualizar perfil")
+            throw error
+        }
     }
 
     return (

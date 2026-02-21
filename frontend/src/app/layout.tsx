@@ -4,6 +4,8 @@ import "./globals.css";
 import { AuthProvider } from "@/context/auth-context";
 import { CartProvider } from "@/context/cart-context";
 import { ProviderProvider } from "@/context/provider-context";
+import { FavoritesProvider } from "@/context/favorites-context";
+import { NotificationsProvider } from "@/context/notifications-context";
 import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({
@@ -34,8 +36,12 @@ export default function RootLayout({
         <AuthProvider>
           <CartProvider>
             <ProviderProvider>
-              {children}
-              <Toaster />
+              <FavoritesProvider>
+                <NotificationsProvider>
+                  {children}
+                  <Toaster richColors position="top-right" />
+                </NotificationsProvider>
+              </FavoritesProvider>
             </ProviderProvider>
           </CartProvider>
         </AuthProvider>

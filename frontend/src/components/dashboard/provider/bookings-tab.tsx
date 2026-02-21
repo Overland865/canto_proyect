@@ -17,11 +17,10 @@ import {
     DialogDescription,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
     DialogFooter
 } from "@/components/ui/dialog"
-import { CalendarDays, Clock, MapPin, Check, X, Eye, FileText, AlertTriangle } from "lucide-react"
-import { useProvider, Booking } from "@/context/provider-context"
+import { CalendarDays, Clock, Eye, Check, X, FileText, AlertTriangle } from "lucide-react"
+import { Booking } from "@/context/provider-context"
 import { useState } from "react"
 import { approveCancellation, rejectCancellation } from "@/lib/supabase-service"
 import { createClient } from "@/lib/supabase/client"
@@ -29,8 +28,12 @@ import { Calendar } from "@/components/ui/calendar"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 
-export default function BookingsPage() {
-    const { bookings, updateBookingStatus } = useProvider()
+interface BookingsTabProps {
+    bookings: Booking[]
+    updateStatus: (id: string, status: Booking["status"], proposedDate?: Date) => void
+}
+
+export function BookingsTab({ bookings, updateStatus }: BookingsTabProps) {
     const supabase = createClient()
     const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
     const [isDetailsOpen, setIsDetailsOpen] = useState(false)
@@ -39,15 +42,10 @@ export default function BookingsPage() {
     const [isRescheduling, setIsRescheduling] = useState(false)
     const [proposedDate, setProposedDate] = useState<Date | undefined>(undefined)
 
-    const handleStatusChange = (id: string, newStatus: Booking["status"]) => {
-        updateBookingStatus(id, newStatus)
-    }
-
     const handleApproveCancellation = async (bookingId: string) => {
         try {
             await approveCancellation(supabase, bookingId)
-            // Optimistically update local state
-            updateBookingStatus(bookingId, 'cancelled')
+            updateStatus(bookingId, 'cancelled')
         } catch (error) {
             console.error("Error approving cancellation:", error)
         }
@@ -56,7 +54,7 @@ export default function BookingsPage() {
     const handleRejectCancellation = async (bookingId: string) => {
         try {
             await rejectCancellation(supabase, bookingId)
-            updateBookingStatus(bookingId, 'confirmed')
+            updateStatus(bookingId, 'confirmed')
         } catch (error) {
             console.error("Error rejecting cancellation:", error)
         }
@@ -69,14 +67,12 @@ export default function BookingsPage() {
         setProposedDate(undefined)
     }
 
-    // Filter mainly pending/confirmed for this view or sort by date? 
     const parseBookingDate = (dateStr: string) => {
+        if (!dateStr) return new Date()
         if (dateStr.includes('-')) {
-            // YYYY-MM-DD
             const [year, month, day] = dateStr.split('-')
             return new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
         } else if (dateStr.includes('/')) {
-            // DD/MM/YYYY
             const [day, month, year] = dateStr.split('/')
             return new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
         }
@@ -90,30 +86,18 @@ export default function BookingsPage() {
         })
     }
 
-    // Create an array of Date objects for markers
     const bookedDates = bookings.map(b => parseBookingDate(b.date))
-
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Reservas</h2>
-                    <p className="text-muted-foreground">Gestiona las solicitudes de reserva para tus servicios.</p>
-                </div>
-                <div className="flex gap-2">
-                    <Button
-                        variant="outline"
-                        onClick={() => setShowCalendar(!showCalendar)}
-                        className={showCalendar ? "bg-secondary" : ""}
-                    >
-                        {showCalendar ? <FileText className="mr-2 h-4 w-4" /> : <CalendarDays className="mr-2 h-4 w-4" />}
-                        {showCalendar ? "Ver Lista" : "Ver Calendario"}
-                    </Button>
-                    <Button>
-                        Nueva Reserva Manual
-                    </Button>
-                </div>
+            <div className="flex justify-end">
+                <Button
+                    variant="outline"
+                    onClick={() => setShowCalendar(!showCalendar)}
+                >
+                    {showCalendar ? <FileText className="mr-2 h-4 w-4" /> : <CalendarDays className="mr-2 h-4 w-4" />}
+                    {showCalendar ? "Ver Lista" : "Ver Calendario"}
+                </Button>
             </div>
 
             {showCalendar ? (
@@ -126,10 +110,7 @@ export default function BookingsPage() {
                                 onSelect={setDate}
                                 className="rounded-md border shadow-sm"
                                 locale={es}
-                                // Highlight days with bookings
-                                modifiers={{
-                                    booked: bookedDates
-                                }}
+                                modifiers={{ booked: bookedDates }}
                                 modifiersStyles={{
                                     booked: { fontWeight: "bold", textDecoration: "underline", color: "var(--primary)" }
                                 }}
@@ -141,9 +122,7 @@ export default function BookingsPage() {
                             <CardTitle>
                                 {date ? format(date, "d 'de' MMMM, yyyy", { locale: es }) : "Selecciona una fecha"}
                             </CardTitle>
-                            <CardDescription>
-                                Reservas para este día
-                            </CardDescription>
+                            <CardDescription>Reservas para esta fecha</CardDescription>
                         </CardHeader>
                         <CardContent>
                             {date && bookingsOnDate(date).length > 0 ? (
@@ -181,20 +160,19 @@ export default function BookingsPage() {
             ) : (
                 <Card>
                     <CardHeader>
-                        <CardTitle>Solicitudes Recientes</CardTitle>
+                        <CardTitle>Solicitudes de Reserva</CardTitle>
                         <CardDescription>
-                            Tienes {bookings.filter(b => b.status === 'pending').length} solicitudes pendientes de aprobación.
+                            Tienes {bookings.filter(b => b.status === 'pending').length} solicitudes pendientes.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="rounded-md border">
+                        <div className="rounded-md border overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead className="w-[100px]">ID</TableHead>
                                         <TableHead>Servicio</TableHead>
                                         <TableHead>Cliente</TableHead>
-                                        <TableHead>Fecha</TableHead>
+                                        <TableHead>Fecha/Hora</TableHead>
                                         <TableHead>Estado</TableHead>
                                         <TableHead className="text-right">Monto</TableHead>
                                         <TableHead className="text-right">Acciones</TableHead>
@@ -203,8 +181,7 @@ export default function BookingsPage() {
                                 <TableBody>
                                     {bookings.map((booking) => (
                                         <TableRow key={booking.id}>
-                                            <TableCell className="font-medium">{booking.id}</TableCell>
-                                            <TableCell>{booking.serviceName}</TableCell>
+                                            <TableCell className="font-medium">{booking.serviceName}</TableCell>
                                             <TableCell>
                                                 <div className="flex flex-col">
                                                     <span>{booking.clientName}</span>
@@ -218,12 +195,7 @@ export default function BookingsPage() {
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <Badge variant={
-                                                    booking.status === 'confirmed' ? 'default' :
-                                                        booking.status === 'pending' ? 'secondary' :
-                                                            booking.status === 'rejected' || booking.status === 'cancelled' ? 'destructive' :
-                                                                booking.status === 'cancellation_requested' ? 'outline' : 'outline'
-                                                } className={
+                                                <Badge className={
                                                     booking.status === 'confirmed' ? 'bg-green-600 hover:bg-green-700' :
                                                         booking.status === 'pending' ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' :
                                                             booking.status === 'cancellation_requested' ? 'border-orange-500 text-orange-600 bg-orange-50' :
@@ -231,7 +203,7 @@ export default function BookingsPage() {
                                                 }>
                                                     {booking.status === 'confirmed' ? 'Confirmada' :
                                                         booking.status === 'pending' ? 'Pendiente' :
-                                                            booking.status === 'cancellation_requested' ? '⚠ Cancelación Solicitada' :
+                                                            booking.status === 'cancellation_requested' ? '⚠ Cancelación' :
                                                                 booking.status === 'cancelled' ? 'Cancelada' :
                                                                     booking.status === 'rejected' ? 'Rechazada' : 'Completada'}
                                                 </Badge>
@@ -241,56 +213,11 @@ export default function BookingsPage() {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-2">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        title="Ver Detalle"
-                                                        onClick={() => openDetails(booking)}
-                                                    >
-                                                        <Eye className="h-4 w-4" />
-                                                    </Button>
+                                                    <Button variant="ghost" size="icon" onClick={() => openDetails(booking)}><Eye className="h-4 w-4" /></Button>
                                                     {booking.status === 'pending' && (
                                                         <>
-                                                            <Button
-                                                                variant="outline"
-                                                                size="icon"
-                                                                className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                                                                title="Aprobar"
-                                                                onClick={() => handleStatusChange(booking.id, 'confirmed')}
-                                                            >
-                                                                <Check className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button
-                                                                variant="outline"
-                                                                size="icon"
-                                                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                                title="Rechazar"
-                                                                onClick={() => handleStatusChange(booking.id, 'rejected')}
-                                                            >
-                                                                <X className="h-4 w-4" />
-                                                            </Button>
-                                                        </>
-                                                    )}
-                                                    {booking.status === 'cancellation_requested' && (
-                                                        <>
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                                                                title="Aprobar Cancelación"
-                                                                onClick={() => handleApproveCancellation(booking.id)}
-                                                            >
-                                                                <Check className="h-4 w-4 mr-1" /> Aprobar
-                                                            </Button>
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                                title="Rechazar Cancelación"
-                                                                onClick={() => handleRejectCancellation(booking.id)}
-                                                            >
-                                                                <X className="h-4 w-4 mr-1" /> Rechazar
-                                                            </Button>
+                                                            <Button variant="outline" size="icon" className="text-green-600" onClick={() => updateStatus(booking.id, 'confirmed')}><Check className="h-4 w-4" /></Button>
+                                                            <Button variant="outline" size="icon" className="text-red-600" onClick={() => updateStatus(booking.id, 'rejected')}><X className="h-4 w-4" /></Button>
                                                         </>
                                                     )}
                                                 </div>
@@ -304,14 +231,11 @@ export default function BookingsPage() {
                 </Card>
             )}
 
-            {/* Dialog Details */}
             <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Detalle de la Solicitud</DialogTitle>
-                        <DialogDescription>
-                            ID: {selectedBooking?.id}
-                        </DialogDescription>
+                        <DialogDescription>ID: {selectedBooking?.id}</DialogDescription>
                     </DialogHeader>
                     {selectedBooking && (
                         <div className="space-y-4 py-4">
@@ -330,16 +254,13 @@ export default function BookingsPage() {
                                     <p className="text-sm">{selectedBooking.time}</p>
                                 </div>
                                 <div className="space-y-1">
-                                    <p className="text-sm font-medium text-muted-foreground">Invitados/Cantidad</p>
+                                    <p className="text-sm font-medium text-muted-foreground">Invitados</p>
                                     <p className="font-semibold">{selectedBooking.guests}</p>
                                 </div>
                             </div>
-
                             <div className="space-y-2 mt-4">
-                                <h4 className="flex items-center font-medium gap-2">
-                                    <FileText className="w-4 h-4" /> Especificaciones del Evento
-                                </h4>
-                                <div className="bg-muted p-4 rounded-md text-sm leading-relaxed">
+                                <h4 className="flex items-center font-medium gap-2"><FileText className="w-4 h-4" /> Especificaciones</h4>
+                                <div className="bg-muted p-4 rounded-md text-sm">
                                     {selectedBooking.specifications || "Sin especificaciones adicionales."}
                                 </div>
                             </div>
@@ -347,69 +268,28 @@ export default function BookingsPage() {
                     )}
                     <DialogFooter>
                         {selectedBooking?.status === 'cancellation_requested' && (
-                            <div className="w-full space-y-3">
-                                <div className="flex items-start gap-2 p-3 bg-orange-50 border border-orange-200 rounded-md text-sm">
-                                    <AlertTriangle className="h-4 w-4 text-orange-500 mt-0.5 shrink-0" />
-                                    <div>
-                                        <p className="font-medium text-orange-700">Solicitud de cancelación</p>
-                                        <p className="text-orange-600 mt-1">
-                                            Motivo: {selectedBooking.cancellationReason || "No especificado"}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="flex justify-end gap-2">
-                                    <Button variant="outline" onClick={() => {
-                                        handleRejectCancellation(selectedBooking.id)
-                                        setIsDetailsOpen(false)
-                                    }}>Rechazar Cancelación</Button>
-                                    <Button variant="destructive" onClick={() => {
-                                        handleApproveCancellation(selectedBooking.id)
-                                        setIsDetailsOpen(false)
-                                    }}>Aprobar Cancelación</Button>
-                                </div>
+                            <div className="flex justify-end gap-2 w-full">
+                                <Button variant="outline" onClick={() => { if (selectedBooking) handleRejectCancellation(selectedBooking.id); setIsDetailsOpen(false); }}>Rechazar</Button>
+                                <Button variant="destructive" onClick={() => { if (selectedBooking) handleApproveCancellation(selectedBooking.id); setIsDetailsOpen(false); }}>Aprobar</Button>
                             </div>
                         )}
                         {selectedBooking?.status === 'pending' && !isRescheduling && (
                             <div className="flex gap-2 w-full justify-between">
                                 <Button variant="ghost" onClick={() => setIsRescheduling(true)}>Reprogramar</Button>
                                 <div className="flex gap-2">
-                                    <Button variant="outline" onClick={() => {
-                                        if (selectedBooking) handleStatusChange(selectedBooking.id, 'rejected')
-                                        setIsDetailsOpen(false)
-                                    }}>Rechazar</Button>
-                                    <Button onClick={() => {
-                                        if (selectedBooking) handleStatusChange(selectedBooking.id, 'confirmed')
-                                        setIsDetailsOpen(false)
-                                    }}>Aprobar Solicitud</Button>
+                                    <Button variant="outline" onClick={() => { if (selectedBooking) updateStatus(selectedBooking.id, 'rejected'); setIsDetailsOpen(false); }}>Rechazar</Button>
+                                    <Button onClick={() => { if (selectedBooking) updateStatus(selectedBooking.id, 'confirmed'); setIsDetailsOpen(false); }}>Aprobar</Button>
                                 </div>
                             </div>
                         )}
                         {isRescheduling && (
                             <div className="w-full space-y-4">
-                                <div className="p-4 border rounded-md">
-                                    <h4 className="mb-2 font-medium">Selecciona una nueva fecha:</h4>
-                                    <div className="flex justify-center">
-                                        <Calendar
-                                            mode="single"
-                                            selected={proposedDate}
-                                            onSelect={setProposedDate}
-                                            initialFocus
-                                        />
-                                    </div>
-                                </div>
+                                <Calendar mode="single" selected={proposedDate} onSelect={setProposedDate} />
                                 <div className="flex justify-end gap-2">
                                     <Button variant="ghost" onClick={() => setIsRescheduling(false)}>Cancelar</Button>
-                                    <Button disabled={!proposedDate} onClick={() => {
-                                        if (selectedBooking && proposedDate) {
-                                            updateBookingStatus(selectedBooking.id, 'rescheduled', proposedDate)
-                                            setIsDetailsOpen(false)
-                                        }
-                                    }}>Enviar Propuesta</Button>
+                                    <Button onClick={() => { if (selectedBooking) updateStatus(selectedBooking.id, 'rescheduled', proposedDate); setIsDetailsOpen(false); }}>Enviar</Button>
                                 </div>
                             </div>
-                        )}
-                        {selectedBooking?.status !== 'pending' && (
-                            <Button onClick={() => setIsDetailsOpen(false)}>Cerrar</Button>
                         )}
                     </DialogFooter>
                 </DialogContent>

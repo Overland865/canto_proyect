@@ -8,13 +8,29 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { CircleDollarSign, Users, Activity, AlertCircle, Plus } from "lucide-react"
 import { useProvider } from "@/context/provider-context"
 import { useAuth } from "@/context/auth-context"
-import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { AvailabilityCalendar } from "@/components/dashboard/provider/availability-calendar"
+import {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+    Cell
+} from 'recharts'
+import { format, subDays, isSameDay } from 'date-fns'
+import { es } from 'date-fns/locale'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { SummaryTab } from "@/components/dashboard/provider/summary-tab"
+import { BookingsTab } from "@/components/dashboard/provider/bookings-tab"
+import { ServicesTab } from "@/components/dashboard/provider/services-tab"
+import { useState, useEffect } from "react"
 
 export default function ProviderDashboardPage() {
     const { user } = useAuth()
-    const { getMyServices, deleteService, bookings } = useProvider()
+    const { getMyServices, deleteService, bookings, updateBookingStatus } = useProvider()
     const myServices = getMyServices()
     const supabase = createClient()
     const [views, setViews] = useState(0)
@@ -33,6 +49,10 @@ export default function ProviderDashboardPage() {
         fetchStats()
     }, [user])
 
+    // Calculate Stats
+    const totalBookings = bookings.length
+    const pendingBookings = bookings.filter(b => b.status === 'pending').length
+
     // Calculate Total Income (Confirmed or Completed)
     const income = bookings.reduce((sum, booking) => {
         if (booking.status === 'confirmed' || booking.status === 'completed') {
@@ -40,6 +60,25 @@ export default function ProviderDashboardPage() {
         }
         return sum
     }, 0)
+
+    // Prepare Chart Data (Last 7 Days)
+    const chartData = Array.from({ length: 7 }, (_, i) => {
+        const date = subDays(new Date(), 6 - i)
+        const dayIncome = bookings.reduce((sum, b) => {
+            if ((b.status === 'confirmed' || b.status === 'completed') && b.date) {
+                const bDate = new Date(b.date)
+                if (isSameDay(bDate, date)) {
+                    return sum + (b.amount || 0)
+                }
+            }
+            return sum
+        }, 0)
+        return {
+            name: format(date, 'EEE', { locale: es }),
+            income: dayIncome,
+            fullDate: format(date, 'PP', { locale: es })
+        }
+    })
 
     if (!user || user.role !== "provider") {
         return <div>Acceso denegado. Este panel es solo para proveedores.</div>
@@ -70,115 +109,56 @@ export default function ProviderDashboardPage() {
                 </AlertDescription>
             </Alert>
 
-            {/* KPI Cards */}
-            <div className="grid gap-4 md:grid-cols-3">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Ingresos Totales</CardTitle>
-                        <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">${income.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                        <p className="text-xs text-muted-foreground">Ingresos confirmados</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Servicios Activos</CardTitle>
-                        <Activity className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{myServices.length}</div>
-                        <p className="text-xs text-muted-foreground">Servicios publicados</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Vistas de Perfil</CardTitle>
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{views}</div>
-                        <p className="text-xs text-muted-foreground">Visualizaciones totales</p>
-                    </CardContent>
-                </Card>
+            {/* Dashboard Tabs */}
+            <Tabs defaultValue="overview" className="space-y-6">
+                <TabsList className="bg-muted/50 p-1 w-full md:w-auto h-auto grid grid-cols-2 md:inline-flex">
+                    <TabsTrigger value="overview" className="px-6 py-2">Resumen</TabsTrigger>
+                    <TabsTrigger value="bookings" className="px-6 py-2">Reservas</TabsTrigger>
+                    <TabsTrigger value="services" className="px-6 py-2">Mis Servicios</TabsTrigger>
+                    <TabsTrigger value="availability" className="px-6 py-2">Disponibilidad</TabsTrigger>
+                </TabsList>
 
-            </div>
+                <TabsContent value="overview">
+                    <SummaryTab
+                        income={income}
+                        pendingBookings={pendingBookings}
+                        totalBookings={totalBookings}
+                        chartData={chartData}
+                    />
+                </TabsContent>
 
-            {/* Availability Calendar Integration */}
-            <div className="mt-8 grid md:grid-cols-2 gap-8 items-start">
-                <AvailabilityCalendar />
+                <TabsContent value="bookings">
+                    <BookingsTab
+                        bookings={bookings}
+                        updateStatus={updateBookingStatus}
+                    />
+                </TabsContent>
 
-                {/* Additional context or instructions can go here */}
-                <Card className="h-full bg-slate-50 border-dashed">
-                    <CardHeader>
-                        <CardTitle>Gestión de Disponibilidad</CardTitle>
-                        <CardDescription>
-                            Mantén tu calendario actualizado para asegurar reservas.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4 text-sm text-muted-foreground">
-                        <p>✓ Los días en <span className="font-bold text-green-600">Verde</span> son reservas confirmadas.</p>
-                        <p>✓ Los días en <span className="font-bold text-red-600">Rojo</span> son días que has bloqueado manualmente.</p>
-                        <p>✓ Haz clic en un día libre para bloquearlo si no puedes atender eventos.</p>
-                        <p>✓ Haz clic en un día bloqueado para liberarlo y aceptar reservas nuevamente.</p>
-                    </CardContent>
-                </Card>
-            </div>
+                <TabsContent value="services">
+                    <ServicesTab
+                        services={myServices}
+                        onDelete={deleteService}
+                    />
+                </TabsContent>
 
-            {/* Active Listings */}
-            <h3 className="text-xl font-bold mt-8">Mis Servicios</h3>
-            {myServices.length === 0 ? (
-                <div className="text-center py-10 border border-dashed rounded-lg bg-muted/50">
-                    <h3 className="text-lg font-medium text-muted-foreground">No tienes servicios publicados</h3>
-                    <p className="text-sm text-muted-foreground mt-2">Crea tu primer servicio o paquete para empezar a vender.</p>
-                    <Link href="/dashboard/provider/services/new">
-                        <Button className="mt-4" variant="outline">Crear Servicio</Button>
-                    </Link>
-                </div>
-            ) : (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {myServices.map((service) => (
-                        <Card key={service.id}>
-                            <CardHeader className="pb-3">
-                                <div className="flex justify-between items-start">
-                                    <CardTitle className="text-lg line-clamp-1">{service.title}</CardTitle>
-                                    <Badge variant={service.type === 'package' ? "default" : "secondary"}>
-                                        {service.type === 'package' ? 'Paquete' : 'Servicio'}
-                                    </Badge>
-                                </div>
-                                <CardDescription className="line-clamp-2">{service.description}</CardDescription>
+                <TabsContent value="availability">
+                    <div className="grid md:grid-cols-2 gap-8 items-start">
+                        <AvailabilityCalendar />
+                        <Card className="h-full bg-slate-50 border-dashed">
+                            <CardHeader>
+                                <CardTitle>Gestión de Disponibilidad</CardTitle>
+                                <CardDescription>Mantén tu calendario actualizado para asegurar reservas.</CardDescription>
                             </CardHeader>
-                            <CardContent>
-                                <div className="aspect-video bg-muted rounded-md mb-2 overflow-hidden">
-                                    {service.image ? (
-                                        <img src={service.image} alt={service.title} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-muted-foreground">Sin Imagen</div>
-                                    )}
-                                </div>
-                                <p className="font-bold text-lg">${service.price.toLocaleString()}</p>
+                            <CardContent className="space-y-4 text-sm text-muted-foreground">
+                                <p>✓ Los días en <span className="font-bold text-green-600">Verde</span> son reservas confirmadas.</p>
+                                <p>✓ Los días en <span className="font-bold text-red-600">Rojo</span> son días que has bloqueado manualmente.</p>
+                                <p>✓ Haz clic en un día libre para bloquearlo si no puedes atender eventos.</p>
+                                <p>✓ Haz clic en un día bloqueado para liberarlo y aceptar reservas nuevamente.</p>
                             </CardContent>
-                            <CardFooter className="flex justify-between">
-                                <Link href={`/dashboard/provider/services/${service.id}`}>
-                                    <Button variant="ghost">Editar</Button>
-                                </Link>
-                                <Button
-                                    variant="outline"
-                                    className="text-destructive hover:text-destructive"
-                                    onClick={() => {
-                                        if (confirm('¿Estás seguro de eliminar este servicio?')) {
-                                            deleteService(service.id)
-                                        }
-                                    }}
-                                >
-                                    Eliminar
-                                </Button>
-                            </CardFooter>
                         </Card>
-                    ))}
-                </div>
-            )}
+                    </div>
+                </TabsContent>
+            </Tabs>
         </div>
     )
 }

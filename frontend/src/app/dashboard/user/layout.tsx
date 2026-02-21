@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { Navbar } from "@/components/shared/navbar"
 import { Button } from "@/components/ui/button"
-import { Home, Calendar, CreditCard, Settings, User } from "lucide-react"
+import { Home, Calendar, CreditCard, Settings, User, Heart } from "lucide-react"
 
 export default function DashboardLayout({
     children,
@@ -35,6 +35,11 @@ export default function DashboardLayout({
                         <Link href="/dashboard/user/payments">
                             <Button variant="ghost" className="w-full justify-start">
                                 <CreditCard className="mr-2 h-4 w-4" /> Pagos
+                            </Button>
+                        </Link>
+                        <Link href="/dashboard/user/favorites">
+                            <Button variant="ghost" className="w-full justify-start">
+                                <Heart className="mr-2 h-4 w-4" /> Mis Favoritos
                             </Button>
                         </Link>
                         <Link href="/dashboard/user/profile">

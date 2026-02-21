@@ -99,37 +99,43 @@ export default function ProviderProfilePage() {
         if (!e.target.files || e.target.files.length === 0) return
         if (!user) return
 
-        const file = e.target.files[0]
-        const fileExt = file.name.split('.').pop()
-        const fileName = `${user.id}/${Math.random()}.${fileExt}`
-        const filePath = `${fileName}`
-
-        const toastId = toast.loading("Subiendo imagen...")
+        const files = Array.from(e.target.files)
+        const toastId = toast.loading(files.length > 1 ? `Subiendo ${files.length} imágenes...` : "Subiendo imagen...")
 
         try {
-            const { error: uploadError } = await supabase.storage
-                .from('profile-images')
-                .upload(filePath, file)
+            const uploadedUrls: string[] = []
 
-            if (uploadError) throw uploadError
+            for (const file of files) {
+                const fileExt = file.name.split('.').pop()
+                const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+                const filePath = `${fileName}`
 
-            const { data: { publicUrl } } = supabase.storage
-                .from('profile-images')
-                .getPublicUrl(filePath)
+                const { error: uploadError } = await supabase.storage
+                    .from('profile-images')
+                    .upload(filePath, file)
+
+                if (uploadError) throw uploadError
+
+                const { data: { publicUrl } } = supabase.storage
+                    .from('profile-images')
+                    .getPublicUrl(filePath)
+
+                uploadedUrls.push(publicUrl)
+            }
 
             if (type === 'cover') {
-                setFormData(prev => ({ ...prev, cover_image: publicUrl }))
+                setFormData(prev => ({ ...prev, cover_image: uploadedUrls[0] }))
             } else {
-                setFormData(prev => ({ ...prev, gallery: [...prev.gallery, publicUrl] }))
+                setFormData(prev => ({ ...prev, gallery: [...prev.gallery, ...uploadedUrls] }))
             }
 
             toast.dismiss(toastId)
-            toast.success("Imagen subida correctamente")
+            toast.success(files.length > 1 ? `${files.length} imágenes subidas correctamente` : "Imagen subida correctamente")
 
         } catch (error) {
             console.error("Error uploading image:", error)
             toast.dismiss(toastId)
-            toast.error("Error al subir la imagen")
+            toast.error("Error al subir la(s) imagen(es)")
         }
     }
 
@@ -293,7 +299,7 @@ export default function ProviderProfilePage() {
                                 <div>
                                     <Input
                                         id="gallery-upload"
-                                        type="file"
+                                        multiple
                                         accept="image/*"
                                         className="hidden"
                                         onChange={(e) => handleImageUpload(e, 'gallery')}
