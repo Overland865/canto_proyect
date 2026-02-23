@@ -52,7 +52,7 @@ export function FilterBar({
     onSortChange
 }: FilterBarProps) {
     return (
-        <div className="sticky top-16 z-30 w-full bg-background border-b shadow-sm">
+        <div className="sticky top-16 z-30 w-full bg-background/95 backdrop-blur-md border-b shadow-sm transition-shadow duration-300">
             <div className="container max-w-[1920px] py-4 space-y-4">
 
                 {/* Top Row: Search & Primary Actions */}

@@ -17,6 +17,7 @@ import { ComplementaryProviders } from "@/components/marketplace/complementary-p
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { LocationMap } from "@/components/marketplace/location-map"
+import Image from "next/image"
 
 export function ServiceDetailContent({ id }: { id: string }) {
     const { getAllServices } = useProvider()
@@ -32,12 +33,23 @@ export function ServiceDetailContent({ id }: { id: string }) {
             const found = getAllServices().find(s => s.id === id)
             if (found) {
                 setService(found)
-                setLoading(false)
             }
+            setLoading(false)
         }
     }, [id, getAllServices, service])
 
-    if (loading) return <div className="p-10 text-center">Cargando...</div>
+    if (loading) return (
+        <div className="container py-8 space-y-8 animate-pulse">
+            <div className="h-8 w-64 bg-muted rounded mb-4" />
+            <div className="aspect-video w-full bg-muted rounded-xl" />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2 space-y-4">
+                    <div className="h-4 w-full bg-muted rounded" />
+                    <div className="h-4 w-3/4 bg-muted rounded" />
+                </div>
+            </div>
+        </div>
+    )
 
     if (!service) {
         return <div className="p-10 text-center">Servicio no encontrado</div>
@@ -75,8 +87,14 @@ export function ServiceDetailContent({ id }: { id: string }) {
                     </div>
 
                     {/* Gallery Carousel */}
-                    <div className="aspect-video w-full overflow-hidden rounded-xl bg-muted relative group">
-                        <img src={service.image} className="object-cover w-full h-full" alt={service.title} />
+                    <div className="aspect-video w-full overflow-hidden rounded-xl bg-muted relative group shadow-inner border border-muted">
+                        <Image
+                            src={service.image}
+                            alt={service.title}
+                            fill
+                            className="object-cover group-hover:scale-105 transition-transform duration-700"
+                            priority
+                        />
 
                         <Dialog>
                             <DialogTrigger asChild>
@@ -89,7 +107,12 @@ export function ServiceDetailContent({ id }: { id: string }) {
                                             {gallery.map((img: string, index: number) => (
                                                 <CarouselItem key={index}>
                                                     <div className="relative aspect-video flex items-center justify-center">
-                                                        <img src={img} alt={`Gallery ${index}`} className="object-contain max-h-[80vh] w-full rounded-md" />
+                                                        <Image
+                                                            src={img}
+                                                            alt={`Gallery ${index}`}
+                                                            fill
+                                                            className="object-contain"
+                                                        />
                                                     </div>
                                                 </CarouselItem>
                                             ))}

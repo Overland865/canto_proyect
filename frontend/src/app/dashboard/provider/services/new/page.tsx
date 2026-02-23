@@ -11,7 +11,7 @@ import { ChevronLeft, Upload, Loader2, X } from "lucide-react"
 import { useState, useRef } from "react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
-import { fetchAPI } from "@/lib/api"
+import { createService } from "@/lib/supabase-service"
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/context/auth-context"
 
@@ -98,10 +98,7 @@ export default function NewServicePage() {
                 gallery: images, // Send full gallery
             }
 
-            await fetchAPI('/services', {
-                method: 'POST',
-                body: JSON.stringify(payload)
-            })
+            await createService(supabase, payload)
 
             toast.success("Servicio Creado", {
                 description: "Tu servicio ha sido publicado correctamente en el catálogo.",
