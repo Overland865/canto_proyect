@@ -11,6 +11,8 @@ import { useCart } from "@/context/cart-context"
 import { useProvider } from "@/context/provider-context"
 import { FilterBar } from "@/components/marketplace/filter-bar"
 import FavoriteButton from "@/components/shared/favorite-button"
+import Image from "next/image"
+import { ServiceCardSkeleton } from "@/components/marketplace/service-skeleton"
 
 const CATEGORIES = [
     "Locales",
@@ -103,7 +105,11 @@ export function MarketplaceContent({ initialCategory, initialSearch }: { initial
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        {filteredServices.length > 0 ? (
+                        {useProvider().isLoading ? (
+                            Array.from({ length: 8 }).map((_, i) => (
+                                <ServiceCardSkeleton key={i} />
+                            ))
+                        ) : filteredServices.length > 0 ? (
                             filteredServices.map((service) => (
                                 <Link
                                     href={`/marketplace/${service.id}`}
@@ -112,10 +118,12 @@ export function MarketplaceContent({ initialCategory, initialSearch }: { initial
                                 >
                                     <Card className="h-full overflow-hidden hover:shadow-xl transition-all duration-300 border-muted flex flex-col group-hover:-translate-y-1">
                                         <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-                                            <img
+                                            <Image
                                                 src={service.image}
                                                 alt={service.title}
-                                                className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500"
+                                                fill
+                                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                                                className="object-cover group-hover:scale-105 transition-transform duration-500"
                                             />
                                             <div className="absolute top-2 left-2 z-10">
                                                 <FavoriteButton serviceId={String(service.id)} />

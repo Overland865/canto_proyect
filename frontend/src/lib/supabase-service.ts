@@ -9,89 +9,16 @@
  */
 
 import { SupabaseClient } from "@supabase/supabase-js"
-
-// ============================================================
-// TYPES
-// ============================================================
-
-export interface ProfileUpdate {
-    full_name?: string
-    phone?: string
-    website?: string
-    avatar_url?: string
-}
-
-export interface ReviewData {
-    booking_id: string | number
-    service_id: string | number
-    provider_id: string
-    client_id: string
-    rating: number
-    comment?: string | null
-}
-
-export interface Review {
-    id: number
-    rating: number
-    comment: string | null
-    created_at: string
-    profiles: {
-        full_name: string
-        avatar_url: string | null
-    }
-}
-
-export interface FavoriteService {
-    id: string
-    service_id: string
-    title: string
-    price: number
-    category: string
-    image: string | null
-    image_url: string | null
-    created_at: string
-}
-
-export interface BookingExpanded {
-    service_id: string | number
-    provider_id: string
-    client_id: string
-    date: string
-    total_price: number
-    status?: string
-    guests?: number
-    location?: string
-    event_name?: string
-    event_time?: string
-    budget?: number
-}
-
-export interface UserBooking {
-    id: string
-    service_id: string
-    provider_id: string
-    date: string
-    status: string
-    total_price: number
-    guests?: number
-    location?: string
-    event_name?: string
-    cancellation_reason?: string
-    cancelled_by?: string
-    cancelled_at?: string
-    services?: { title: string; image?: string; image_url?: string }
-    has_review?: boolean
-}
-
-export interface Notification {
-    id: string
-    user_id: string
-    type: string
-    title: string
-    message: string
-    is_read: boolean
-    created_at: string
-}
+import {
+    ProfileUpdate,
+    ReviewData,
+    Review,
+    FavoriteService,
+    BookingExpanded,
+    UserBooking,
+    Notification,
+    ServiceData
+} from "@/types"
 
 // ============================================================
 // PROFILE FUNCTIONS
@@ -826,4 +753,33 @@ export async function findComplementaryProviders(
     if (error) throw error
 
     return (data || []).filter((s: any) => s.profiles !== null)
+}
+
+/**
+ * Crea un nuevo servicio en la base de datos.
+ */
+export async function createService(
+    supabase: SupabaseClient,
+    data: ServiceData
+) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error("Debes iniciar sesión para publicar un servicio.")
+
+    const { data: service, error } = await supabase
+        .from("services")
+        .insert({
+            provider_id: user.id,
+            title: data.title,
+            description: data.description,
+            category: data.category,
+            price: data.price,
+            location: data.location,
+            image: data.image || (data.gallery && data.gallery.length > 0 ? data.gallery[0] : null),
+            updated_at: new Date().toISOString(),
+        })
+        .select()
+        .single()
+
+    if (error) throw error
+    return service
 }
