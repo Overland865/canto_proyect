@@ -26,8 +26,10 @@ export function Navbar() {
       <div className="container flex h-16 items-center">
         <div className="mr-4 hidden md:flex">
           <Link href="/" className="mr-6 flex items-center space-x-2">
-            <Home className="h-6 w-6 text-primary" />
-            <span className="font-bold text-white hidden sm:inline-block">Local_Space</span>
+            <img src="/logo-icon.svg" alt="Local Space" className="h-8 w-auto drop-shadow-sm" />
+            <span className="font-bold text-white hidden sm:inline-block text-xl tracking-tight">
+              Local<span className="text-primary ml-1">Space</span>
+            </span>
           </Link>
           <nav className="flex items-center space-x-6 text-sm font-medium">
             {user?.role === 'provider' ? (
@@ -68,8 +70,11 @@ export function Navbar() {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="pr-0 bg-[hsl(220,55%,18%)] border-r border-[hsl(220,55%,12%)] text-white">
-            <Link href="/" className="flex items-center text-white">
-              <span className="font-bold">Local_Space</span>
+            <Link href="/" className="flex items-center space-x-2 text-white bg-white/5 p-2 rounded-md">
+              <img src="/logo-icon.svg" alt="Local Space" className="h-6 w-auto drop-shadow-sm" />
+              <span className="font-bold tracking-tight text-lg">
+                Local<span className="text-primary ml-1">Space</span>
+              </span>
             </Link>
             <nav className="flex flex-col gap-4 mt-4">
               {user?.role === 'provider' ? (
