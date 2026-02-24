@@ -26,8 +26,8 @@ export function Navbar() {
       <div className="container flex h-16 items-center">
         <div className="mr-4 hidden md:flex">
           <Link href="/" className="mr-6 flex items-center space-x-2">
-            <img src="/logo-icon.svg" alt="Local Space" className="h-8 w-auto drop-shadow-sm" />
-            <span className="font-bold text-white hidden sm:inline-block text-xl tracking-tight">
+            <img src="/logo-icon.svg" alt="Local Space" className="h-11 w-auto drop-shadow-md" />
+            <span className="font-bold text-white hidden sm:inline-block text-2xl tracking-tighter">
               Local<span className="text-primary ml-1">Space</span>
             </span>
           </Link>
@@ -71,8 +71,8 @@ export function Navbar() {
           </SheetTrigger>
           <SheetContent side="left" className="pr-0 bg-[hsl(220,55%,18%)] border-r border-[hsl(220,55%,12%)] text-white">
             <Link href="/" className="flex items-center space-x-2 text-white bg-white/5 p-2 rounded-md">
-              <img src="/logo-icon.svg" alt="Local Space" className="h-6 w-auto drop-shadow-sm" />
-              <span className="font-bold tracking-tight text-lg">
+              <img src="/logo-icon.svg" alt="Local Space" className="h-9 w-auto drop-shadow-md" />
+              <span className="font-bold tracking-tighter text-xl">
                 Local<span className="text-primary ml-1">Space</span>
               </span>
             </Link>
