@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+    <!-- Sombra suave inferior -->
+    <ellipse cx="60" cy="115" rx="25" ry="4" fill="rgba(206, 126, 33, 0.2)" />
+
+    <!-- El Pin de Ubicación (Ahora en Ámbar/Dorado para resaltar) -->
+    <path d="M60 5 C35.15 5 15 25.15 15 50 C15 85 60 115 60 115 C60 115 105 85 105 50 C105 25.15 84.85 5 60 5 Z" fill="#CE7E21" />
+
+    <!-- El Hueco Circular Blanco del Pin Tradicional -->
+    <circle cx="60" cy="45" r="32" fill="#FFFFFF" />
+
+    <!-- La Carpa / Toldo de Eventos (Centrada dentro del círculo del pin) -->
+    <g transform="translate(36, 28) scale(0.48)">
+        <!-- Techo a dos aguas de la carpa (Azul Marino para contraste) -->
+        <path d="M10 50 L50 20 L90 50" fill="none" stroke="#152447" stroke-width="8" stroke-linejoin="round" />
+        <path d="M10 50 L90 50" fill="none" stroke="#152447" stroke-width="8" stroke-linecap="round" />
+        
+        <!-- Detalles estructurales del techo -->
+        <path d="M50 20 L50 50" stroke="#152447" stroke-width="6" />
+        <path d="M30 35 L30 50" stroke="#152447" stroke-width="4" />
+        <path d="M70 35 L70 50" stroke="#152447" stroke-width="4" />
+        
+        <!-- Postes laterales -->
+        <path d="M12 50 L12 90" stroke="#152447" stroke-width="6" stroke-linecap="round" />
+        <path d="M88 50 L88 90" stroke="#152447" stroke-width="6" stroke-linecap="round" />
+        
+        <!-- Soportes / tensores diagonales -->
+        <path d="M22 50 L15 80" stroke="#152447" stroke-width="3" />
+        <path d="M78 50 L85 80" stroke="#152447" stroke-width="3" />
+        
+        <!-- Tira de luces festivas (Azul Marino sutil) -->
+        <path d="M14 53 Q50 80 86 53" fill="none" stroke="#152447" stroke-width="2" />
+        
+        <!-- Focos / Luces brillantes con resplandor (Ámbar) -->
+        <!-- Luz 1 -->
+        <circle cx="22" cy="59" r="6" fill="rgba(206, 126, 33, 0.4)" />
+        <circle cx="22" cy="59" r="3" fill="#CE7E21" />
+        <!-- Luz 2 -->
+        <circle cx="34" cy="65" r="6" fill="rgba(206, 126, 33, 0.4)" />
+        <circle cx="34" cy="65" r="3" fill="#CE7E21" />
+        <!-- Luz 3 (Centro) -->
+        <circle cx="50" cy="68" r="8" fill="rgba(206, 126, 33, 0.5)" />
+        <circle cx="50" cy="68" r="4" fill="#CE7E21" />
+        <!-- Luz 4 -->
+        <circle cx="66" cy="65" r="6" fill="rgba(206, 126, 33, 0.4)" />
+        <circle cx="66" cy="65" r="3" fill="#CE7E21" />
+        <!-- Luz 5 -->
+        <circle cx="78" cy="59" r="6" fill="rgba(206, 126, 33, 0.4)" />
+        <circle cx="78" cy="59" r="3" fill="#CE7E21" />
+    </g>
+</svg>
