@@ -7,12 +7,13 @@ export const metadata: Metadata = {
     description: 'Explora nuestra amplia variedad de servicios para eventos: locales, banquetes, música y más.',
 }
 
-export default function MarketplacePage({ searchParams }: { searchParams: { category?: string, search?: string } }) {
+export default async function MarketplacePage({ searchParams }: { searchParams: Promise<{ category?: string, search?: string }> }) {
+    const sp = await searchParams;
     return (
         <Suspense fallback={<div className="container py-8 flex justify-center text-muted-foreground">Cargando catálogo...</div>}>
             <MarketplaceContent
-                initialCategory={searchParams.category}
-                initialSearch={searchParams.search}
+                initialCategory={sp.category}
+                initialSearch={sp.search}
             />
         </Suspense>
     )

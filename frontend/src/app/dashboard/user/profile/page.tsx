@@ -193,19 +193,6 @@ export default function ProfilePage() {
                                         <Input id="website" value={formData.website} onChange={handleChange} placeholder="https://..." />
                                     </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="region">Región</Label>
-                                    <Select onValueChange={handleRegionChange} value={formData.region}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Selecciona tu región" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {REGIONS.map((region) => (
-                                                <SelectItem key={region} value={region}>{region}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
                                 {user.role === "provider" && (
                                     <div className="space-y-2">
                                         <Label htmlFor="businessName">Nombre del Negocio</Label>

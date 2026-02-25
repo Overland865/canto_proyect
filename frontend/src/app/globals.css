@@ -5,23 +5,33 @@
 @layer base {
   :root {
     /* Paleta v2 - Identidad Cálida (Beige + Azul Marino + Ámbar) */
-    --background: 38 25% 83%;  /* Beige/arena cálido */
-    --foreground: 220 55% 18%; /* Azul marino oscuro */
-    --card: 0 0% 100%;         /* Blanco puro */
+    --background: 38 25% 83%;
+    /* Beige/arena cálido */
+    --foreground: 220 55% 18%;
+    /* Azul marino oscuro */
+    --card: 0 0% 100%;
+    /* Blanco puro */
     --card-foreground: 220 55% 18%;
     --popover: 0 0% 100%;
     --popover-foreground: 220 55% 18%;
-    --primary: 32 72% 47%;     /* Ámbar/dorado cálido */
-    --primary-foreground: 0 0% 100%; /* Blanco */
-    --secondary: 38 22% 92%;   /* Arena muy claro */
+    --primary: 32 72% 47%;
+    /* Ámbar/dorado cálido */
+    --primary-foreground: 0 0% 100%;
+    /* Blanco */
+    --secondary: 38 22% 92%;
+    /* Arena muy claro */
     --secondary-foreground: 220 55% 18%;
-    --muted: 38 20% 88%;       /* Beige apagado */
-    --muted-foreground: 220 25% 45%; /* Azul grisáceo */
-    --accent: 32 72% 47%;      /* Ámbar para hover */
+    --muted: 38 20% 88%;
+    /* Beige apagado */
+    --muted-foreground: 220 25% 45%;
+    /* Azul grisáceo */
+    --accent: 32 72% 47%;
+    /* Ámbar para hover */
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 38 18% 72%;      /* Beige medio */
+    --border: 38 18% 72%;
+    /* Beige medio */
     --input: 38 18% 72%;
     --ring: 32 72% 47%;
     --radius: 0.5rem;
@@ -29,13 +39,17 @@
 
   .dark {
     /* Modo oscuro - Azul marino profundo + Beige claro + Ámbar */
-    --background: 220 55% 10%; /* Azul marino muy oscuro */
-    --foreground: 38 25% 90%;  /* Beige claro */
-    --card: 220 55% 14%;       /* Azul marino con luz */
+    --background: 220 55% 10%;
+    /* Azul marino muy oscuro */
+    --foreground: 38 25% 90%;
+    /* Beige claro */
+    --card: 220 55% 14%;
+    /* Azul marino con luz */
     --card-foreground: 38 25% 90%;
     --popover: 220 55% 14%;
     --popover-foreground: 38 25% 90%;
-    --primary: 32 72% 52%;     /* Ámbar brillante */
+    --primary: 32 72% 52%;
+    /* Ámbar brillante */
     --primary-foreground: 222.2 47.4% 11.2%;
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -55,9 +69,11 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+
   html {
     scroll-behavior: smooth;
   }
@@ -67,24 +83,48 @@
   .animate-in-fade {
     animation: fade-in 0.5s ease-out forwards;
   }
-  
+
   .animate-in-slide-up {
     animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
   @keyframes fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
   }
 
   @keyframes slide-up {
-    from { 
+    from {
       opacity: 0;
       transform: translateY(10px);
     }
-    to { 
+
+    to {
       opacity: 1;
       transform: translateY(0);
     }
+  }
+
+  /* Custom Sophisticated Scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 dark:bg-slate-700 rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-400 dark:bg-slate-600;
   }
 }

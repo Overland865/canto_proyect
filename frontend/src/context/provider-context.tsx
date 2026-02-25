@@ -23,6 +23,9 @@ export type Service = {
     providerAvatar?: string
     businessName?: string
     contactPhone?: string
+    capacity?: number
+    tables?: number
+    chairs?: number
 }
 
 type ProviderContextType = {
@@ -111,7 +114,10 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
                     verified: s.is_verified,
                     businessName: s.profiles?.full_name,
                     contactPhone: s.profiles?.phone,
-                    providerAvatar: s.profiles?.avatar_url || ""
+                    providerAvatar: s.profiles?.avatar_url || "",
+                    capacity: s.capacity,
+                    tables: s.tables,
+                    chairs: s.chairs
                 }))
 
                 const finalServices = mappedServices.map((s: any) => ({

@@ -18,21 +18,27 @@ if (!supabaseUrl || !supabaseKey) {
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function testFetch() {
-    console.log("Testing fetch from 'services'...");
-    const { data, error } = await supabase.from('services').select('*');
+    console.log("Testing fetch from 'services' with profiles!inner...");
+    const { data, error } = await supabase
+        .from('services')
+        .select(`
+            id,
+            title,
+            provider_id,
+            profiles!inner (
+                status,
+                full_name
+            )
+        `)
 
     if (error) {
         console.error("Error fetching:", error);
     } else {
-        console.log(`Success! Fetched ${data.length} services.`);
+        console.log(`Success! Fetched ${data.length} services with profiles.`);
         data.forEach(s => {
-            console.log(`- Service ID: ${s.id}`);
-            console.log(`  Title: ${s.title}`);
-            console.log(`  Provider ID: ${s.provider_id}`);
-            console.log(`  Image Length: ${s.image ? s.image.length : 0} chars`);
-            if (s.image && s.image.length > 10000) {
-                console.warn("  WARNING: Image is very large (base64?). This might cause performance issues.");
-            }
+            console.log(`- Service: ${s.title}`);
+            console.log(`  Provider Name: ${s.profiles?.full_name}`);
+            console.log(`  Provider Status: ${s.profiles?.status}`);
         });
     }
 }
