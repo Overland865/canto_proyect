@@ -13,17 +13,6 @@ import { useAuth } from "@/context/auth-context"
 
 import { toast } from "sonner"
 
-const REGIONS = [
-    "CDMX",
-    "Estado de México",
-    "Jalisco",
-    "Nuevo León",
-    "Puebla",
-    "Querétaro",
-    "Yucatán",
-    "Morelos"
-]
-
 export default function RegisterPage() {
     const { register, verifyOtp } = useAuth()
     const [loading, setLoading] = useState(false)
@@ -36,18 +25,16 @@ export default function RegisterPage() {
     const [clientLastname, setClientLastname] = useState("")
     const [clientEmail, setClientEmail] = useState("")
     const [clientPassword, setClientPassword] = useState("")
-    const [clientRegion, setClientRegion] = useState("")
 
     // Provider State
     const [businessName, setBusinessName] = useState("")
     const [providerEmail, setProviderEmail] = useState("")
     const [providerPassword, setProviderPassword] = useState("")
-    const [providerRegion, setProviderRegion] = useState("")
     const [providerCategory, setProviderCategory] = useState("")
     const [providerPhone, setProviderPhone] = useState("")
 
     const handleClientRegister = async () => {
-        if (!clientName || !clientLastname || !clientEmail || !clientPassword || !clientRegion) {
+        if (!clientName || !clientLastname || !clientEmail || !clientPassword) {
             toast.error("Por favor completa todos los campos")
             return
         }
@@ -59,8 +46,7 @@ export default function RegisterPage() {
                 lastname: clientLastname,
                 email: clientEmail,
                 password: clientPassword,
-                role: "consumer",
-                region: clientRegion
+                role: "consumer"
             })
 
             if (result && result.needsVerification) {
@@ -79,7 +65,7 @@ export default function RegisterPage() {
     }
 
     const handleProviderRegister = async () => {
-        if (!businessName || !providerEmail || !providerPassword || !providerRegion || !providerCategory || !providerPhone) {
+        if (!businessName || !providerEmail || !providerPassword || !providerCategory || !providerPhone) {
             toast.error("Por favor completa todos los campos")
             return
         }
@@ -93,7 +79,6 @@ export default function RegisterPage() {
                 email: providerEmail,
                 password: providerPassword,
                 role: "provider",
-                region: providerRegion,
                 category: providerCategory,
                 phone: providerPhone
             })
@@ -180,25 +165,23 @@ export default function RegisterPage() {
                 </TabsList>
                 <div className="p-4 pb-0">
                     <TabsContent value="client" className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="name">Nombre</Label>
-                                <Input
-                                    id="name"
-                                    placeholder="Tu nombre"
-                                    value={clientName}
-                                    onChange={(e) => setClientName(e.target.value)}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="lastname">Apellido</Label>
-                                <Input
-                                    id="lastname"
-                                    placeholder="Tu apellido"
-                                    value={clientLastname}
-                                    onChange={(e) => setClientLastname(e.target.value)}
-                                />
-                            </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="name">Nombre</Label>
+                            <Input
+                                id="name"
+                                placeholder="Tu nombre"
+                                value={clientName}
+                                onChange={(e) => setClientName(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="lastname">Apellido</Label>
+                            <Input
+                                id="lastname"
+                                placeholder="Tu apellido"
+                                value={clientLastname}
+                                onChange={(e) => setClientLastname(e.target.value)}
+                            />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="email">Correo Electrónico</Label>
@@ -209,19 +192,6 @@ export default function RegisterPage() {
                                 value={clientEmail}
                                 onChange={(e) => setClientEmail(e.target.value)}
                             />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="region">Región</Label>
-                            <Select onValueChange={setClientRegion} value={clientRegion}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Selecciona tu región" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {REGIONS.map((region) => (
-                                        <SelectItem key={region} value={region}>{region}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="password">Contraseña</Label>
@@ -257,44 +227,33 @@ export default function RegisterPage() {
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="region-provider">Región</Label>
-                            <Select onValueChange={setProviderRegion} value={providerRegion}>
+                            <Label htmlFor="category-provider">Categoría</Label>
+                            <Select onValueChange={setProviderCategory} value={providerCategory}>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Selecciona tu región" />
+                                    <SelectValue placeholder="Giro" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {REGIONS.map((region) => (
-                                        <SelectItem key={region} value={region}>{region}</SelectItem>
-                                    ))}
+                                    <SelectItem value="Locales y Salones">Locales y Salones</SelectItem>
+                                    <SelectItem value="Banquetes">Banquetes</SelectItem>
+                                    <SelectItem value="Música y Shows">Música y Shows</SelectItem>
+                                    <SelectItem value="Foto y Video">Foto y Video</SelectItem>
+                                    <SelectItem value="Inflables">Inflables</SelectItem>
+                                    <SelectItem value="Barra Libre">Barra Libre</SelectItem>
+                                    <SelectItem value="Mesa de Dulces">Mesa de Dulces</SelectItem>
+                                    <SelectItem value="Meseros">Meseros</SelectItem>
+                                    <SelectItem value="Mobiliario">Mobiliario</SelectItem>
+                                    <SelectItem value="Decoraciones">Decoraciones</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="category-provider">Categoría</Label>
-                                <Select onValueChange={setProviderCategory} value={providerCategory}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Giro" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Locales">Locales</SelectItem>
-                                        <SelectItem value="Banquetes">Banquetes</SelectItem>
-                                        <SelectItem value="Música">Música</SelectItem>
-                                        <SelectItem value="Decoración">Decoración</SelectItem>
-                                        <SelectItem value="Foto y Video">Foto y Video</SelectItem>
-                                        <SelectItem value="Otros">Otros</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="phone-provider">WhatsApp</Label>
-                                <Input
-                                    id="phone-provider"
-                                    placeholder="10 dígitos"
-                                    value={providerPhone}
-                                    onChange={(e) => setProviderPhone(e.target.value)}
-                                />
-                            </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="phone-provider">WhatsApp</Label>
+                            <Input
+                                id="phone-provider"
+                                placeholder="10 dígitos"
+                                value={providerPhone}
+                                onChange={(e) => setProviderPhone(e.target.value)}
+                            />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="password-provider">Contraseña</Label>

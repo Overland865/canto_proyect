@@ -15,30 +15,30 @@ import Image from "next/image"
 import { ServiceCardSkeleton } from "@/components/marketplace/service-skeleton"
 
 const CATEGORIES = [
-    "Locales",
+    "Locales y Salones",
     "Banquetes",
-    "Música",
-    "Decoración",
+    "Música y Shows",
     "Foto y Video",
     "Inflables",
     "Barra Libre",
     "Mesa de Dulces",
     "Meseros",
-    "Mobiliario"
+    "Mobiliario",
+    "Decoraciones"
 ]
 
 export function MarketplaceContent({ initialCategory, initialSearch }: { initialCategory?: string | null, initialSearch?: string | null }) {
     const { getAllServices } = useProvider()
     const services = getAllServices()
-    const { addToCart } = useCart()
+    const { addToCart, eventPlan } = useCart()
 
     const [selectedCategories, setSelectedCategories] = useState<string[]>(
         initialCategory && CATEGORIES.includes(initialCategory) ? [initialCategory] : []
     )
     const [priceRange, setPriceRange] = useState([50000])
     const [searchValue, setSearchValue] = useState(initialSearch || "")
-    const [location, setLocation] = useState("all")
     const [minRating, setMinRating] = useState(0)
+    const [sortOption, setSortOption] = useState("recommended")
 
     const handleCategoryChange = (category: string) => {
         if (category === "clear_all") {
@@ -61,11 +61,24 @@ export function MarketplaceContent({ initialCategory, initialSearch }: { initial
         const matchesSearch = service.title.toLowerCase().includes(searchValue.toLowerCase()) ||
             service.location.toLowerCase().includes(searchValue.toLowerCase()) ||
             service.category.toLowerCase().includes(searchValue.toLowerCase())
-        const matchesLocation = location === "all" ||
-            service.location.toLowerCase().includes(location.toLowerCase())
+
         const matchesRating = (service.rating || 0) >= minRating
 
-        return matchesCategory && matchesPrice && matchesSearch && matchesLocation && matchesRating
+        return matchesCategory && matchesPrice && matchesSearch && matchesRating
+    })
+
+    const sortedServices = [...filteredServices].sort((a, b) => {
+        switch (sortOption) {
+            case "price_asc":
+                return a.price - b.price
+            case "price_desc":
+                return b.price - a.price
+            case "rating":
+                return (b.rating || 0) - (a.rating || 0)
+            case "recommended":
+            default:
+                return 0
+        }
     })
 
     const handleAddToCart = (e: React.MouseEvent, service: any) => {
@@ -76,6 +89,8 @@ export function MarketplaceContent({ initialCategory, initialSearch }: { initial
             title: service.title,
             price: service.price,
             description: service.location,
+            image: service.image,
+            category: service.category,
         })
     }
 
@@ -89,17 +104,17 @@ export function MarketplaceContent({ initialCategory, initialSearch }: { initial
                 onPriceChange={setPriceRange}
                 searchValue={searchValue}
                 onSearchChange={setSearchValue}
-                location={location}
-                onLocationChange={setLocation}
+
                 minRating={minRating}
                 onRatingChange={setMinRating}
+                onSortChange={setSortOption}
             />
 
             <div className="flex-1 bg-slate-50/50">
                 <div className="container max-w-[1920px] py-8">
                     <div className="mb-6">
                         <h2 className="text-2xl font-bold">
-                            {filteredServices.length} {filteredServices.length === 1 ? "resultado encontrado" : "resultados encontrados"}
+                            {sortedServices.length} {sortedServices.length === 1 ? "resultado encontrado" : "resultados encontrados"}
                         </h2>
                         <p className="text-muted-foreground">Encuentra los mejores proveedores para tu evento.</p>
                     </div>
@@ -109,8 +124,8 @@ export function MarketplaceContent({ initialCategory, initialSearch }: { initial
                             Array.from({ length: 8 }).map((_, i) => (
                                 <ServiceCardSkeleton key={i} />
                             ))
-                        ) : filteredServices.length > 0 ? (
-                            filteredServices.map((service) => (
+                        ) : sortedServices.length > 0 ? (
+                            sortedServices.map((service) => (
                                 <Link
                                     href={`/marketplace/${service.id}`}
                                     key={service.id}
@@ -119,7 +134,7 @@ export function MarketplaceContent({ initialCategory, initialSearch }: { initial
                                     <Card className="h-full overflow-hidden hover:shadow-xl transition-all duration-300 border-muted flex flex-col group-hover:-translate-y-1">
                                         <div className="relative aspect-[4/3] overflow-hidden bg-muted">
                                             <Image
-                                                src={service.image}
+                                                src={service.image || "/placeholder-service.jpg"}
                                                 alt={service.title}
                                                 fill
                                                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
@@ -156,6 +171,23 @@ export function MarketplaceContent({ initialCategory, initialSearch }: { initial
                                                             <MapPin className="w-3 h-3 mr-1 shrink-0" /> {service.location}
                                                         </span>
                                                     </div>
+
+                                                    {eventPlan?.requiresVenue && service.category === "Locales y Salones" && (
+                                                        <div className="mt-2 text-left">
+                                                            {(() => {
+                                                                const capacity = service.capacity || 0;
+                                                                const guests = eventPlan.guests || 0;
+                                                                if (capacity === 0) {
+                                                                    return <Badge variant="outline" className="text-[10px] text-muted-foreground bg-slate-50">Capacidad no especificada</Badge>;
+                                                                }
+                                                                if (capacity >= guests) {
+                                                                    return <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 text-[10px] border-emerald-200">Amplio ({capacity} pers.)</Badge>;
+                                                                } else {
+                                                                    return <Badge variant="destructive" className="text-[10px] opacity-90">Espacio insuficiente ({capacity} pers.)</Badge>;
+                                                                }
+                                                            })()}
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 <div className="flex items-center bg-primary/10 px-1.5 py-0.5 rounded text-xs font-bold text-primary whitespace-nowrap">
                                                     <Star className="w-3 h-3 mr-1 fill-primary" /> {service.rating?.toFixed(1) || "0.0"}

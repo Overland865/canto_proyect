@@ -5,7 +5,8 @@ import { Metadata } from 'next'
 // But the root page.tsx can now have static or dynamic metadata.
 // For dynamic metadata, we would need to fetch the service on the server side too.
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+    const p = await params;
     // In a real production app, we would fetch simple service data here via an edge route or direct supabase call
     // For now, providing a descriptive fallback
     return {
@@ -14,6 +15,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
     }
 }
 
-export default function ServiceDetailPage({ params }: { params: { id: string } }) {
-    return <ServiceDetailContent id={params.id} />
+export default async function ServiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+    const p = await params;
+    return <ServiceDetailContent id={p.id} />
 }

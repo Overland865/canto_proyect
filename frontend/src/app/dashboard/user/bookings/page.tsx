@@ -35,7 +35,7 @@ export default function UserBookingsPage() {
         const { data } = await supabase
             .from('bookings')
             .select('*, services(title), reviews(id)')
-            .eq('client_id', user.id)
+            .eq('user_id', user.id)
             .order('created_at', { ascending: false })
 
         if (data) {
@@ -48,32 +48,7 @@ export default function UserBookingsPage() {
         setLoading(false)
     }
 
-    const handlePay = async (booking: any) => {
-        try {
-            const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000'
-            const response = await fetch(`${backendUrl}/stripe/create-checkout-session`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-                },
-                body: JSON.stringify({
-                    bookingId: booking.id,
-                    serviceName: booking.services?.title || "Servicio",
-                    price: booking.total_price,
-                    userEmail: user?.email
-                })
-            })
-            const data = await response.json()
-            if (data.url) {
-                window.location.href = data.url
-            } else {
-                throw new Error(data.error || "Error al iniciar pago")
-            }
-        } catch (error: any) {
-            alert(error.message)
-        }
-    }
+
 
     const handleRescheduleResponse = async (booking: any, accept: boolean) => {
         if (accept) {
@@ -95,8 +70,22 @@ export default function UserBookingsPage() {
 
     const handleCancelConfirm = async (reason: string) => {
         if (!selectedBooking || !user) return
-        await requestCancellation(supabase, selectedBooking.id, reason, "user")
-        fetchBookings()
+        try {
+            console.log("Iniciando cancelacion para", selectedBooking.id, "con motivo:", reason)
+
+            // Promise with timeout to prevent infinite hang
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout al cancelar")), 8000));
+            await Promise.race([
+                requestCancellation(supabase, selectedBooking.id, reason, "user"),
+                timeoutPromise
+            ]);
+
+            console.log("Cancelacion solicitada con exito");
+            fetchBookings()
+        } catch (err: any) {
+            console.error("Error inesperado en handleCancelConfirm:", err);
+            throw err; // Re-throw so the modal catches it and resets
+        }
     }
 
     useEffect(() => {
@@ -104,7 +93,7 @@ export default function UserBookingsPage() {
         if (!user) return
         const channel = supabase
             .channel('user-bookings-page')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `client_id=eq.${user.id}` }, fetchBookings)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `user_id=eq.${user.id}` }, fetchBookings)
             .subscribe()
         return () => { supabase.removeChannel(channel) }
     }, [user])
@@ -113,14 +102,23 @@ export default function UserBookingsPage() {
         return STATUS_CONFIG[status] || { label: status, color: "⚪", badgeClass: "" }
     }
 
+    const groupedBookings = bookings.reduce((acc, booking) => {
+        const key = booking.event_name || `Evento del ${booking.date}`;
+        if (!acc[key]) {
+            acc[key] = [];
+        }
+        acc[key].push(booking);
+        return acc;
+    }, {} as Record<string, any[]>);
+
     return (
         <div className="space-y-6">
-            <h2 className="text-3xl font-bold tracking-tight">Mis Eventos</h2>
+            <h2 className="text-3xl font-bold tracking-tight">Historial de Compras</h2>
 
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                        <Calendar className="h-5 w-5 text-primary" /> Todas mis solicitudes
+                        <Calendar className="h-5 w-5 text-primary" /> Todo mi historial
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -132,91 +130,100 @@ export default function UserBookingsPage() {
                             <p>No tienes solicitudes todavía.</p>
                         </div>
                     ) : (
-                        <div className="space-y-6">
-                            {bookings.map(booking => {
-                                const statusCfg = getStatusConfig(booking.status)
+                        <div className="space-y-8">
+                            {Object.entries(groupedBookings).map(([eventName, eventBookingsRaw]) => {
+                                const eventBookings = eventBookingsRaw as any[];
                                 return (
-                                    <div key={booking.id} className="flex flex-col md:flex-row md:items-center border-b pb-6 last:border-0 last:pb-0 gap-4">
-                                        <div className="space-y-1 flex-1">
-                                            <p className="text-base font-bold">{booking.services?.title}</p>
-                                            <p className="text-sm text-muted-foreground">Fecha: {booking.date}</p>
-                                            <p className="text-sm font-bold text-primary">${(booking.total_price || 0).toLocaleString()}</p>
-
-                                            {/* Rescheduled notice */}
-                                            {booking.status === 'rescheduled' && (
-                                                <div className="flex items-center text-orange-600 bg-orange-50 p-2 rounded-md mt-2 text-sm">
-                                                    <AlertCircle className="w-4 h-4 mr-2" />
-                                                    <span>Nueva fecha propuesta: <strong>{booking.proposed_date}</strong></span>
-                                                </div>
-                                            )}
-
-                                            {/* Cancellation requested notice */}
-                                            {booking.status === 'cancellation_requested' && (
-                                                <div className="flex items-center text-orange-600 bg-orange-50 p-2 rounded-md mt-2 text-sm">
-                                                    <AlertCircle className="w-4 h-4 mr-2" />
-                                                    <span>Cancelación solicitada — esperando respuesta del proveedor.</span>
-                                                </div>
-                                            )}
-
-                                            {/* Cancelled with reason */}
-                                            {booking.status === 'cancelled' && booking.cancellation_reason && (
-                                                <div className="flex items-center text-red-600 bg-red-50 p-2 rounded-md mt-2 text-sm">
-                                                    <XCircle className="w-4 h-4 mr-2" />
-                                                    <span>Motivo: {booking.cancellation_reason}</span>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className="flex flex-wrap items-center gap-3">
-                                            {/* Status badge with semaphore colors */}
-                                            <Badge className={statusCfg.badgeClass}>
-                                                {statusCfg.label}
-                                            </Badge>
-
-                                            {/* Payment buttons (existing) */}
-                                            {booking.payment_status === 'paid' ? (
-                                                <Badge className="bg-blue-100 text-blue-700 border-blue-200">Pagado</Badge>
-                                            ) : (
-                                                booking.status === 'confirmed' && (
-                                                    <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handlePay(booking)}>
-                                                        Pagar ahora
-                                                    </Button>
-                                                )
-                                            )}
-
-                                            {/* Reschedule response buttons */}
-                                            {booking.status === 'rescheduled' && (
-                                                <div className="flex gap-2">
-                                                    <Button size="sm" variant="outline" onClick={() => handleRescheduleResponse(booking, false)}>Rechazar</Button>
-                                                    <Button size="sm" onClick={() => handleRescheduleResponse(booking, true)}>Aceptar Nueva Fecha</Button>
-                                                </div>
-                                            )}
-
-                                            {/* Cancel button — only for confirmed bookings */}
-                                            {booking.status === 'confirmed' && (
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="border-red-300 text-red-600 hover:bg-red-50"
-                                                    onClick={() => handleCancelClick(booking)}
-                                                >
-                                                    <XCircle className="w-4 h-4 mr-1" />
-                                                    Cancelar
-                                                </Button>
-                                            )}
-                                        </div>
-
-                                        {/* Review form for completed bookings */}
-                                        {booking.status === 'completed' && !booking.has_review && (
-                                            <div className="w-full mt-3">
-                                                <ReviewForm
-                                                    bookingId={booking.id}
-                                                    serviceId={booking.service_id}
-                                                    providerId={booking.provider_id}
-                                                    onReviewSubmitted={fetchBookings}
-                                                />
+                                    <div key={eventName} className="border rounded-lg overflow-hidden">
+                                        <div className="bg-muted/50 px-4 py-3 border-b flex justify-between items-center hover:bg-muted/70 transition-colors">
+                                            <div>
+                                                <h3 className="font-bold text-lg text-primary">{eventName}</h3>
+                                                <p className="text-sm text-muted-foreground">{eventBookings.length} servicio{eventBookings.length > 1 ? 's' : ''}</p>
                                             </div>
-                                        )}
+                                            <div className="text-right">
+                                                <p className="text-sm font-bold">Total del paquete: ${(eventBookings.reduce((sum, b) => sum + (b.total_price || 0), 0)).toLocaleString()}</p>
+                                            </div>
+                                        </div>
+                                        <div className="p-4 space-y-6 bg-card">
+                                            {eventBookings.map(booking => {
+                                                const statusCfg = getStatusConfig(booking.status)
+                                                return (
+                                                    <div key={booking.id} className="flex flex-col md:flex-row md:items-center border-b pb-6 last:border-0 last:pb-0 gap-4">
+                                                        <div className="space-y-1 flex-1">
+                                                            <p className="text-base font-bold">{booking.services?.title}</p>
+                                                            <p className="text-sm text-muted-foreground">Fecha: {booking.date}</p>
+                                                            <p className="text-sm font-bold text-primary">${(booking.total_price || 0).toLocaleString()}</p>
+
+                                                            {/* Rescheduled notice */}
+                                                            {booking.status === 'rescheduled' && (
+                                                                <div className="flex items-center text-orange-600 bg-orange-50 p-2 rounded-md mt-2 text-sm">
+                                                                    <AlertCircle className="w-4 h-4 mr-2" />
+                                                                    <span>Nueva fecha propuesta: <strong>{booking.proposed_date}</strong></span>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Cancellation requested notice */}
+                                                            {booking.status === 'cancellation_requested' && (
+                                                                <div className="flex items-center text-orange-600 bg-orange-50 p-2 rounded-md mt-2 text-sm">
+                                                                    <AlertCircle className="w-4 h-4 mr-2" />
+                                                                    <span>Cancelación solicitada — esperando respuesta del proveedor.</span>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Cancelled with reason */}
+                                                            {booking.status === 'cancelled' && booking.cancellation_reason && (
+                                                                <div className="flex items-center text-red-600 bg-red-50 p-2 rounded-md mt-2 text-sm">
+                                                                    <XCircle className="w-4 h-4 mr-2" />
+                                                                    <span>Motivo: {booking.cancellation_reason}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="flex flex-wrap items-center gap-3">
+                                                            {/* Status badge with semaphore colors */}
+                                                            <Badge className={statusCfg.badgeClass}>
+                                                                {statusCfg.label}
+                                                            </Badge>
+
+
+
+                                                            {/* Reschedule response buttons */}
+                                                            {booking.status === 'rescheduled' && (
+                                                                <div className="flex gap-2">
+                                                                    <Button size="sm" variant="outline" onClick={() => handleRescheduleResponse(booking, false)}>Rechazar</Button>
+                                                                    <Button size="sm" onClick={() => handleRescheduleResponse(booking, true)}>Aceptar Nueva Fecha</Button>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Cancel button — only for confirmed bookings */}
+                                                            {booking.status === 'confirmed' && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    className="border-red-300 text-red-600 hover:bg-red-50"
+                                                                    onClick={() => handleCancelClick(booking)}
+                                                                >
+                                                                    <XCircle className="w-4 h-4 mr-1" />
+                                                                    Cancelar
+                                                                </Button>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Review form for completed bookings */}
+                                                        {booking.status === 'completed' && !booking.has_review && (
+                                                            <div className="w-full mt-3">
+                                                                <ReviewForm
+                                                                    bookingId={booking.id}
+                                                                    serviceId={booking.service_id}
+                                                                    providerId={booking.provider_id}
+                                                                    onReviewSubmitted={fetchBookings}
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
                                     </div>
                                 )
                             })}

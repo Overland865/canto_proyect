@@ -4,9 +4,7 @@ import * as React from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel"
 import { Search, ShieldCheck, DollarSign } from "lucide-react"
-import Autoplay from "embla-carousel-autoplay"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/context/auth-context"
 import { useEffect } from "react"
@@ -29,40 +27,14 @@ export function HeroSection() {
         }
     }, [isAuthenticated, user, router])
 
-    const plugin = React.useRef(
-        Autoplay({ delay: 4000, stopOnInteraction: false })
-    )
-
-    const heroImages = [
-        "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?q=80&w=2070&auto=format&fit=crop",
-        "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=2070&auto=format&fit=crop",
-        "https://images.unsplash.com/photo-1469334031218-e382a71b716b?q=80&w=2070&auto=format&fit=crop",
-        "https://images.unsplash.com/photo-1530103862676-de3c9a59af57?q=80&w=2070&auto=format&fit=crop"
-    ]
+    const heroImage = "https://images.pexels.com/photos/1190298/pexels-photo-1190298.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1" // Party/Event
 
     return (
         <section className="relative h-[600px] w-full overflow-hidden bg-slate-950 text-white">
-            <Carousel
-                plugins={[plugin.current]}
-                className="w-full h-full"
-                opts={{
-                    align: "start",
-                    loop: true,
-                }}
-            >
-                <CarouselContent className="h-[600px] ml-0">
-                    {heroImages.map((img, index) => (
-                        <CarouselItem key={index} className="pl-0 h-[600px] w-full relative">
-                            <div
-                                className="absolute inset-0 h-full w-full bg-cover bg-center transition-transform duration-1000 ease-out"
-                                style={{ backgroundImage: `url(${img})` }}
-                            />
-                            <div className="absolute inset-0 bg-slate-900 -z-10" />
-                        </CarouselItem>
-                    ))}
-                </CarouselContent>
-            </Carousel>
-
+            <div
+                className="absolute inset-0 h-full w-full bg-cover bg-center"
+                style={{ backgroundImage: `url(${heroImage})` }}
+            />
             <div className="absolute inset-0 bg-black/60 z-10" />
 
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center p-4">
@@ -77,18 +49,18 @@ export function HeroSection() {
                     <br className="hidden md:block" /> Encuentra todo lo que necesitas en un solo lugar.
                 </p>
 
-                <form onSubmit={handleSearch} className="w-full max-w-lg mb-10 relative group">
-                    <div className="relative">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                <form onSubmit={handleSearch} className="w-full max-w-2xl mx-auto mb-10 relative group">
+                    <div className="relative flex items-center">
+                        <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-primary transition-colors z-10" />
                         <Input
                             placeholder="Busca servicios, salones, shows..."
-                            className="h-16 pl-12 pr-32 rounded-full border-white/20 bg-white/10 backdrop-blur-md text-white text-lg placeholder:text-gray-400 focus:bg-white/20 focus:border-primary transition-all shadow-2xl"
+                            className="h-16 pl-14 pr-36 rounded-full border-white/20 bg-white/10 backdrop-blur-md text-white text-base placeholder:text-gray-400 placeholder:text-center focus:bg-white/20 focus:border-primary transition-all shadow-2xl w-full text-center"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                         <Button
                             type="submit"
-                            className="absolute right-2 top-2 bottom-2 rounded-full px-6 font-bold"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 h-12 rounded-full px-8 font-bold shadow-lg"
                         >
                             Buscar
                         </Button>
@@ -104,6 +76,6 @@ export function HeroSection() {
                     </span>
                 </div>
             </div>
-        </section>
+        </section >
     )
 }

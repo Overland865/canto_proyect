@@ -2,8 +2,10 @@ import Link from "next/link"
 import { Navbar } from "@/components/shared/navbar"
 import { Footer } from "@/components/shared/footer"
 import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { ShieldCheck, DollarSign, Star, PartyPopper, Utensils, Music, Camera, GlassWater, Cake, Castle, Armchair, Users } from "lucide-react"
 import { HeroSection } from "@/components/home/hero-section"
+import { FeaturedSections } from "@/components/home/featured-sections"
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -33,6 +35,7 @@ export default function Home() {
                 { icon: Cake, label: "Mesa de Dulces", color: "text-rose-500" },
                 { icon: Users, label: "Meseros", color: "text-emerald-500" },
                 { icon: Armchair, label: "Mobiliario", color: "text-indigo-500" },
+                { icon: Star, label: "Decoraciones", color: "text-amber-500" },
               ].map((cat, i) => (
                 <Link href={`/marketplace?category=${encodeURIComponent(cat.label)}`} key={i} className="group">
                   <Card className="hover:shadow-lg transition-all cursor-pointer border-muted h-full">
@@ -48,6 +51,8 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+        <FeaturedSections />
 
         {/* Value Proposition */}
         <section className="py-20 bg-slate-50 dark:bg-slate-900 border-y">
@@ -85,11 +90,11 @@ export default function Home() {
                 <p className="text-primary-foreground/80 text-lg">
                   Únete a Local_Space y llega a miles de clientes que buscan servicios verificados y de calidad.
                 </p>
-                <Link href="/register">
-                  <Button size="lg" variant="secondary" className="font-bold">
+                <Button size="lg" variant="secondary" className="font-bold" asChild>
+                  <Link href="/register">
                     Registrar mi Negocio
-                  </Button>
-                </Link>
+                  </Link>
+                </Button>
               </div>
               <div className="absolute top-0 left-0 w-64 h-64 bg-white/10 rounded-full -translate-x-1/2 -translate-y-1/2 blur-2xl"></div>
               <div className="absolute bottom-0 right-0 w-64 h-64 bg-white/10 rounded-full translate-x-1/2 translate-y-1/2 blur-2xl"></div>
@@ -101,11 +106,4 @@ export default function Home() {
       <Footer />
     </div>
   )
-}
-
-function Button({ children, size, variant, className }: any) {
-  // Simple wrapper so we don't need to import Button component but still use it in Server Component if it was "use client"
-  // Actually our UI components are client components by default often due to Radix, so we just import them.
-  // Re-importing from UI to be safe.
-  return <Link href="/register" className={className}>{children}</Link>
 }

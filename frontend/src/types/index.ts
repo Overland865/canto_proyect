@@ -87,6 +87,7 @@ export interface ServiceData {
     category: string
     price: number
     location: string
+    capacity?: number
     image?: string | null
     gallery?: string[]
 }

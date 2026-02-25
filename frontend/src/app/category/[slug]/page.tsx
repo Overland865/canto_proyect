@@ -52,6 +52,8 @@ export default function CategoryPage() {
             title: service.title,
             price: service.price,
             description: service.location,
+            image: service.image,
+            category: service.category,
         })
     }
 

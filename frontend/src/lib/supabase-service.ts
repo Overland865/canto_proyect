@@ -20,6 +20,8 @@ import {
     ServiceData
 } from "@/types"
 
+export type { FavoriteService } // Export it so favorites-context can import it
+
 // ============================================================
 // PROFILE FUNCTIONS
 // ============================================================
@@ -235,8 +237,7 @@ export async function getFavorites(
                 title,
                 price,
                 category,
-                image,
-                image_url
+                image
             )
         `)
         .eq("user_id", userId)
@@ -251,7 +252,7 @@ export async function getFavorites(
         price: f.services?.price || 0,
         category: f.services?.category || "",
         image: f.services?.image || null,
-        image_url: f.services?.image_url || null,
+        image_url: f.services?.image_url || f.services?.image || null,
         created_at: f.created_at,
     }))
 }

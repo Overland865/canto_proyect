@@ -133,11 +133,13 @@ export function Navbar() {
                       Perfil
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-primary text-white cursor-pointer">
-                    <Link href={user?.role === 'provider' ? "/dashboard/provider" : "/dashboard/user"}>
-                      Dashboard
-                    </Link>
-                  </DropdownMenuItem>
+                  {user?.role === 'provider' && (
+                    <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-primary text-white cursor-pointer">
+                      <Link href="/dashboard/provider">
+                        Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator className="bg-white/10" />
                   <DropdownMenuItem onClick={logout} className="focus:bg-red-500/20 focus:text-red-400 text-red-300 cursor-pointer">
                     Cerrar Sesión

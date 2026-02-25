@@ -30,8 +30,7 @@ interface FilterBarProps {
     onPriceChange: (value: number[]) => void
     searchValue: string
     onSearchChange: (value: string) => void
-    location: string
-    onLocationChange: (value: string) => void
+
     minRating: number
     onRatingChange: (value: number) => void
     onSortChange?: (value: string) => void
@@ -45,8 +44,7 @@ export function FilterBar({
     onPriceChange,
     searchValue,
     onSearchChange,
-    location,
-    onLocationChange,
+
     minRating,
     onRatingChange,
     onSortChange
@@ -78,7 +76,7 @@ export function FilterBar({
                     {/* Category Filter */}
                     <Popover>
                         <PopoverTrigger asChild>
-                            <Button variant="outline" className={`h-10 border-dashed ${selectedCategories.length > 0 ? "border-primary bg-primary/5 text-primary" : ""}`}>
+                            <Button variant="outline" className={`h-10 rounded-full border-muted-foreground/20 hover:border-primary hover:bg-primary/5 transition-colors ${selectedCategories.length > 0 ? "border-primary bg-primary/5 text-primary" : ""}`}>
                                 <Filter className="mr-2 h-4 w-4" />
                                 Categoría
                                 {selectedCategories.length > 0 && (
@@ -124,7 +122,7 @@ export function FilterBar({
                     {/* Price Filter */}
                     <Popover>
                         <PopoverTrigger asChild>
-                            <Button variant="outline" className="h-10 border-dashed">
+                            <Button variant="outline" className="h-10 rounded-full border-muted-foreground/20 hover:border-primary hover:bg-primary/5 transition-colors">
                                 Precio
                                 <ChevronDown className="ml-2 h-4 w-4 text-muted-foreground" />
                             </Button>
@@ -153,34 +151,13 @@ export function FilterBar({
                         </PopoverContent>
                     </Popover>
 
-                    {/* Location Filter */}
-                    <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-muted-foreground" />
-                        <Select value={location} onValueChange={onLocationChange}>
-                            <SelectTrigger className="h-10 w-[160px] border-dashed border-muted-foreground/30 hover:border-primary">
-                                <SelectValue placeholder="Ubicación" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Todas las regiones</SelectItem>
-                                <SelectItem value="CDMX">CDMX</SelectItem>
-                                <SelectItem value="Edomex">Estado de México</SelectItem>
-                                <SelectItem value="Jalisco">Jalisco</SelectItem>
-                                <SelectItem value="Nuevo Leon">Nuevo León</SelectItem>
-                                <SelectItem value="Puebla">Puebla</SelectItem>
-                                <SelectItem value="Querétaro">Querétaro</SelectItem>
-                                <SelectItem value="Quintana Roo">Quintana Roo</SelectItem>
-                                <SelectItem value="Yucatán">Yucatán</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
 
-                    <Separator orientation="vertical" className="h-8 hidden md:block" />
 
                     {/* Rating Filter */}
                     <div className="flex items-center gap-2">
                         <Star className="h-4 w-4 text-muted-foreground" />
                         <Select value={String(minRating)} onValueChange={(v) => onRatingChange(parseFloat(v))}>
-                            <SelectTrigger className="h-10 w-[140px] border-dashed border-muted-foreground/30 hover:border-primary">
+                            <SelectTrigger className="h-10 w-[160px] rounded-full border-muted-foreground/20 hover:border-primary hover:bg-primary/5 transition-colors">
                                 <SelectValue placeholder="Rating min." />
                             </SelectTrigger>
                             <SelectContent>
@@ -194,26 +171,9 @@ export function FilterBar({
 
                     <Separator orientation="vertical" className="h-8 hidden md:block" />
 
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-10 text-muted-foreground hover:text-foreground hover:bg-transparent"
-                        onClick={() => {
-                            onCategoryChange("clear_all");
-                            onPriceChange([50000]);
-                            onLocationChange("all");
-                            onRatingChange(0);
-                            onSearchChange("");
-                        }}
-                    >
-                        Limpiar filtros
-                    </Button>
-
-                    <div className="flex-1" />
-
                     {/* Sort By */}
                     <Select onValueChange={onSortChange}>
-                        <SelectTrigger className="w-[180px] h-10 border-0 bg-transparent focus:ring-0">
+                        <SelectTrigger className="h-10 w-[200px] rounded-full border-muted-foreground/20 hover:border-primary hover:bg-primary/5 transition-colors">
                             <SelectValue placeholder="Ordenar por..." />
                         </SelectTrigger>
                         <SelectContent>
@@ -223,6 +183,23 @@ export function FilterBar({
                             <SelectItem value="rating">Mejor Calificados</SelectItem>
                         </SelectContent>
                     </Select>
+
+                    <Separator orientation="vertical" className="h-8 hidden md:block" />
+
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-10 rounded-full text-muted-foreground hover:text-foreground hover:bg-primary/5 transition-colors px-4"
+                        onClick={() => {
+                            onCategoryChange("clear_all");
+                            onPriceChange([50000]);
+                            onRatingChange(0);
+                            onSearchChange("");
+                            if (onSortChange) onSortChange("recommended");
+                        }}
+                    >
+                        Limpiar filtros
+                    </Button>
 
                 </div>
             </div>

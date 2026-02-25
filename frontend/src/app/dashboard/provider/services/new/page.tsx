@@ -157,11 +157,16 @@ export default function NewServicePage() {
                                         <SelectValue placeholder="Seleccionar..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="Locales">Locales</SelectItem>
+                                        <SelectItem value="Locales y Salones">Locales y Salones</SelectItem>
                                         <SelectItem value="Banquetes">Banquetes</SelectItem>
-                                        <SelectItem value="Música">Música</SelectItem>
+                                        <SelectItem value="Música y Shows">Música y Shows</SelectItem>
                                         <SelectItem value="Foto y Video">Foto y Video</SelectItem>
-                                        <SelectItem value="Decoración">Decoración</SelectItem>
+                                        <SelectItem value="Inflables">Inflables</SelectItem>
+                                        <SelectItem value="Barra Libre">Barra Libre</SelectItem>
+                                        <SelectItem value="Mesa de Dulces">Mesa de Dulces</SelectItem>
+                                        <SelectItem value="Meseros">Meseros</SelectItem>
+                                        <SelectItem value="Mobiliario">Mobiliario</SelectItem>
+                                        <SelectItem value="Decoraciones">Decoraciones</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>

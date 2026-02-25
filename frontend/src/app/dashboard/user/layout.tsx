@@ -12,24 +12,15 @@ export default function DashboardLayout({
         <div className="flex min-h-screen flex-col">
             <header className="border-b bg-background">
                 <div className="container flex h-16 items-center px-4">
-                    <Link href="/" className="font-bold mr-8">Local_Space <span className="text-muted-foreground font-normal">| Dashboard</span></Link>
-                    <div className="ml-auto flex items-center space-x-4">
-                        <span className="text-sm text-muted-foreground">Hola, Usuario</span>
-                        <div className="h-8 w-8 rounded-full bg-primary/20"></div>
-                    </div>
+                    <Link href="/" className="font-bold mr-8">Local_Space</Link>
                 </div>
             </header>
             <div className="flex flex-1 container py-8 gap-8">
                 <aside className="w-64 shrink-0 hidden md:block">
                     <nav className="flex flex-col gap-2">
-                        <Link href="/dashboard/user">
-                            <Button variant="ghost" className="w-full justify-start">
-                                <Home className="mr-2 h-4 w-4" /> Resumen
-                            </Button>
-                        </Link>
                         <Link href="/dashboard/user/bookings">
                             <Button variant="ghost" className="w-full justify-start">
-                                <Calendar className="mr-2 h-4 w-4" /> Mis Eventos
+                                <Calendar className="mr-2 h-4 w-4" /> Historial
                             </Button>
                         </Link>
                         <Link href="/dashboard/user/payments">
