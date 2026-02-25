@@ -26,6 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SummaryTab } from "@/components/dashboard/provider/summary-tab"
 import { BookingsTab } from "@/components/dashboard/provider/bookings-tab"
 import { ServicesTab } from "@/components/dashboard/provider/services-tab"
+import { ProfileTab } from "@/components/dashboard/provider/profile-tab"
 import { useState, useEffect } from "react"
 
 export default function ProviderDashboardPage() {
@@ -111,11 +112,12 @@ export default function ProviderDashboardPage() {
 
             {/* Dashboard Tabs */}
             <Tabs defaultValue="overview" className="space-y-6">
-                <TabsList className="bg-muted/50 p-1 w-full md:w-auto h-auto grid grid-cols-2 md:inline-flex">
+                <TabsList className="bg-muted/50 p-1 w-full md:w-auto h-auto grid grid-cols-2 md:grid-cols-3 lg:inline-flex flex-wrap">
                     <TabsTrigger value="overview" className="px-6 py-2">Resumen</TabsTrigger>
                     <TabsTrigger value="bookings" className="px-6 py-2">Reservas</TabsTrigger>
                     <TabsTrigger value="services" className="px-6 py-2">Mis Servicios</TabsTrigger>
                     <TabsTrigger value="availability" className="px-6 py-2">Disponibilidad</TabsTrigger>
+                    <TabsTrigger value="profile" className="px-6 py-2">Perfil</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="overview">
@@ -142,21 +144,11 @@ export default function ProviderDashboardPage() {
                 </TabsContent>
 
                 <TabsContent value="availability">
-                    <div className="grid md:grid-cols-2 gap-8 items-start">
-                        <AvailabilityCalendar />
-                        <Card className="h-full bg-slate-50 border-dashed">
-                            <CardHeader>
-                                <CardTitle>Gestión de Disponibilidad</CardTitle>
-                                <CardDescription>Mantén tu calendario actualizado para asegurar reservas.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4 text-sm text-muted-foreground">
-                                <p>✓ Los días en <span className="font-bold text-green-600">Verde</span> son reservas confirmadas.</p>
-                                <p>✓ Los días en <span className="font-bold text-red-600">Rojo</span> son días que has bloqueado manualmente.</p>
-                                <p>✓ Haz clic en un día libre para bloquearlo si no puedes atender eventos.</p>
-                                <p>✓ Haz clic en un día bloqueado para liberarlo y aceptar reservas nuevamente.</p>
-                            </CardContent>
-                        </Card>
-                    </div>
+                    <AvailabilityCalendar />
+                </TabsContent>
+
+                <TabsContent value="profile">
+                    <ProfileTab />
                 </TabsContent>
             </Tabs>
         </div>

@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect } from "react"
 import { useAuth } from "@/context/auth-context"
@@ -10,16 +10,19 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
-import { Loader2, Upload, X, Save, Image as ImageIcon, Globe, Phone, Instagram, Facebook } from "lucide-react"
+import { Loader2, Upload, X, Save, Image as ImageIcon, Globe, Phone, Instagram, Facebook, Users } from "lucide-react"
 
-export default function ProviderProfilePage() {
-    const { user } = useAuth()
+export function ProfileTab() {
+    const { user, updateProfile } = useAuth()
     const supabase = createClient()
     const [isLoading, setIsLoading] = useState(true)
     const [isSaving, setIsSaving] = useState(false)
 
     // Form State
     const [formData, setFormData] = useState({
+        name: "",
+        lastname: "",
+        region: "",
         description: "",
         phone: "",
         website: "",
@@ -28,6 +31,7 @@ export default function ProviderProfilePage() {
             facebook: "",
             tiktok: ""
         } as any,
+        avatar_url: "",
         cover_image: "",
         gallery: [] as string[]
     })
@@ -40,40 +44,62 @@ export default function ProviderProfilePage() {
 
             try {
                 // 1. Fetch Profile Data
+                console.log("DEBUG - Loading profiles for ID:", user.id)
                 const { data: profile, error } = await supabase
                     .from('profiles')
-                    .select('description, phone, website, social_media, cover_image, gallery')
+                    .select('*')
                     .eq('id', user.id)
                     .single()
 
-                if (error && error.code !== 'PGRST116') throw error
+                if (error && error.code !== 'PGRST116') {
+                    console.error("DEBUG - Profiles query error:", error)
+                    // We don't throw here, instead we'll try to work with whatever we got
+                }
+                console.log("DEBUG - Profiles query result:", profile)
 
                 // 2. Fetch Provider Details
-                const { data: providerProfile } = await supabase
+                console.log("DEBUG - Loading provider_profiles for ID:", user.id)
+                const { data: providerProfile, error: providerError } = await supabase
                     .from('provider_profiles')
-                    .select('business_name, contact_phone')
+                    .select('*')
                     .eq('id', user.id)
                     .single()
+
+                if (providerError && providerError.code !== 'PGRST116') {
+                    console.error("DEBUG - Provider profiles query error:", providerError)
+                }
+                console.log("DEBUG - Provider profiles result:", providerProfile)
 
                 if (providerProfile) {
                     setBusinessName(providerProfile.business_name || "")
                 }
 
-                if (profile) {
+                if (profile || providerProfile) {
+                    console.log("Profile data processing...")
+                    const fullName = profile?.full_name || ""
+                    const nameParts = fullName.split(' ')
+                    const name = nameParts[0] || ""
+                    const lastname = nameParts.slice(1).join(' ') || ""
+
                     setFormData({
-                        description: profile.description || "",
-                        phone: providerProfile?.contact_phone || profile.phone || "", // Priority to business phone
-                        website: profile.website || "",
-                        social_media: profile.social_media || { instagram: "", facebook: "", tiktok: "" },
-                        cover_image: profile.cover_image || "",
-                        gallery: profile.gallery || []
+                        name: profile?.name || name,
+                        lastname: profile?.lastname || lastname,
+                        region: profile?.region || "",
+                        description: profile?.description || "",
+                        phone: providerProfile?.contact_phone || profile?.phone || "",
+                        website: profile?.website || "",
+                        social_media: profile?.social_media || { instagram: "", facebook: "", tiktok: "" },
+                        avatar_url: profile?.avatar_url || "",
+                        cover_image: profile?.cover_image || "",
+                        gallery: profile?.gallery || []
                     })
                 }
 
             } catch (error) {
-                console.error("Error loading profile:", error)
+                console.error("DEBUG - Error loading profile:", error)
                 toast.error("Error al cargar el perfil")
             } finally {
+                console.log("Setting isLoading to false")
                 setIsLoading(false)
             }
         }
@@ -95,7 +121,7 @@ export default function ProviderProfilePage() {
         }))
     }
 
-    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'cover' | 'gallery') => {
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'cover' | 'gallery') => {
         if (!e.target.files || e.target.files.length === 0) return
         if (!user) return
 
@@ -107,7 +133,8 @@ export default function ProviderProfilePage() {
 
             for (const file of files) {
                 const fileExt = file.name.split('.').pop()
-                const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+                const folder = type === 'avatar' ? 'avatars' : (type === 'cover' ? 'covers' : 'gallery')
+                const fileName = `${user.id}/${folder}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
                 const filePath = `${fileName}`
 
                 const { error: uploadError } = await supabase.storage
@@ -123,7 +150,9 @@ export default function ProviderProfilePage() {
                 uploadedUrls.push(publicUrl)
             }
 
-            if (type === 'cover') {
+            if (type === 'avatar') {
+                setFormData(prev => ({ ...prev, avatar_url: uploadedUrls[0] }))
+            } else if (type === 'cover') {
                 setFormData(prev => ({ ...prev, cover_image: uploadedUrls[0] }))
             } else {
                 setFormData(prev => ({ ...prev, gallery: [...prev.gallery, ...uploadedUrls] }))
@@ -151,20 +180,25 @@ export default function ProviderProfilePage() {
         setIsSaving(true)
 
         try {
-            const { error } = await supabase
-                .from('profiles')
-                .update({
-                    description: formData.description,
-                    phone: formData.phone,
-                    website: formData.website,
-                    social_media: formData.social_media,
-                    cover_image: formData.cover_image,
-                    gallery: formData.gallery,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', user.id)
+            const profileData = {
+                full_name: `${formData.name} ${formData.lastname}`.trim(),
+                name: formData.name,
+                lastname: formData.lastname,
+                region: formData.region,
+                avatar_url: formData.avatar_url,
+                description: formData.description,
+                phone: formData.phone,
+                website: formData.website,
+                social_media: formData.social_media,
+                cover_image: formData.cover_image,
+                gallery: formData.gallery,
+            }
 
-            // Update Provider Profile (Business Name & Contact Phone)
+            // 1. Update Profile (via context to keep everything in sync)
+            // This already updates the 'profiles' table and the UI state
+            await updateProfile(profileData)
+
+            // 2. Update Provider Profile (Business Name & Contact Phone)
             const { error: providerError } = await supabase
                 .from('provider_profiles')
                 .update({
@@ -173,12 +207,9 @@ export default function ProviderProfilePage() {
                 })
                 .eq('id', user.id)
 
-
             if (providerError) throw providerError
 
-            if (error) throw error
-            toast.success("Perfil actualizado correctamente")
-
+            // No need for redundant success toast if updateProfile handles it
         } catch (error) {
             console.error("Error saving profile:", error)
             toast.error("Error al guardar los cambios")
@@ -199,7 +230,7 @@ export default function ProviderProfilePage() {
         <div className="container max-w-4xl py-8 space-y-8">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Configuración</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">Perfil</h1>
                     <p className="text-muted-foreground">Administra tu perfil público y preferencias de cuenta.</p>
                 </div>
                 <Button onClick={handleSave} disabled={isSaving}>
@@ -218,6 +249,45 @@ export default function ProviderProfilePage() {
 
                 {/* --- pestaña GENERAL --- */}
                 <TabsContent value="general" className="space-y-4 py-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Información Personal</CardTitle>
+                            <CardDescription>Tus datos básicos de perfil.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="firstName">Nombre</Label>
+                                    <Input
+                                        id="firstName"
+                                        value={formData.name}
+                                        onChange={(e) => handleInputChange('name', e.target.value)}
+                                        placeholder="Tu nombre"
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="lastName">Apellidos</Label>
+                                    <Input
+                                        id="lastName"
+                                        value={formData.lastname}
+                                        onChange={(e) => handleInputChange('lastname', e.target.value)}
+                                        placeholder="Tus apellidos"
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="region">Región / Ubicación</Label>
+                                <Input
+                                    id="region"
+                                    value={formData.region}
+                                    onChange={(e) => handleInputChange('region', e.target.value)}
+                                    placeholder="Ej: CDMX, Monterrey, etc."
+                                />
+                                <p className="text-xs text-muted-foreground">Indica la zona principal donde ofreces tus servicios.</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+
                     <Card>
                         <CardHeader>
                             <CardTitle>Información del Negocio</CardTitle>
@@ -251,6 +321,44 @@ export default function ProviderProfilePage() {
 
                 {/* --- pestaña IMAGENES --- */}
                 <TabsContent value="images" className="space-y-4 py-4">
+                    {/* Profile Picture (Avatar) */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Foto de Perfil</CardTitle>
+                            <CardDescription>Esta foto aparecerá junto a tu nombre en comentarios y búsquedas.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="flex items-center gap-6">
+                                <div className="relative h-24 w-24 rounded-full border-2 border-dashed border-muted-foreground/25 flex items-center justify-center bg-muted/20 overflow-hidden group shrink-0">
+                                    {formData.avatar_url ? (
+                                        <img src={formData.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <Users className="w-8 h-8 text-muted-foreground" />
+                                    )}
+                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <Label htmlFor="avatar-upload" className="cursor-pointer">
+                                            <Upload className="w-5 h-5 text-white" />
+                                        </Label>
+                                    </div>
+                                    <Input
+                                        id="avatar-upload"
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={(e) => handleImageUpload(e, 'avatar')}
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-sm font-medium">Sube una foto clara</p>
+                                    <p className="text-xs text-muted-foreground">Formato JPG, PNG o WebP. Máximo 2MB.</p>
+                                    <Button variant="outline" size="sm" className="mt-2" onClick={() => document.getElementById('avatar-upload')?.click()}>
+                                        Subir Foto
+                                    </Button>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
                     {/* Cover Image */}
                     <Card>
                         <CardHeader>

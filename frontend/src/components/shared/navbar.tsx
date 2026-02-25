@@ -105,13 +105,13 @@ export function Navbar() {
           </div>
           <nav className="flex items-center gap-2">
             <NotificationBell />
-            <CartSheet />
+            {user?.role !== 'provider' && <CartSheet />}
             {isAuthenticated ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-8 w-8 rounded-full hover:bg-white/10">
                     <Avatar className="h-8 w-8 ring-2 ring-primary/20">
-                      <AvatarImage src="/avatars/01.png" alt={user?.name} />
+                      <AvatarImage src={user?.avatar_url || "/avatars/01.png"} alt={user?.name} />
                       <AvatarFallback className="bg-primary text-white font-bold border border-white/20">
                         {user?.name?.charAt(0).toUpperCase()}
                       </AvatarFallback>
@@ -128,15 +128,17 @@ export function Navbar() {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator className="bg-white/10" />
-                  <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-primary text-white cursor-pointer">
-                    <Link href={user?.role === 'provider' ? "/dashboard/provider/settings" : "/dashboard/user/profile"}>
-                      Perfil
-                    </Link>
-                  </DropdownMenuItem>
+                  {user?.role !== 'provider' && (
+                    <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-primary text-white cursor-pointer">
+                      <Link href="/dashboard/user/profile">
+                        Perfil
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   {user?.role === 'provider' && (
                     <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-primary text-white cursor-pointer">
                       <Link href="/dashboard/provider">
-                        Dashboard
+                        Mi Panel
                       </Link>
                     </DropdownMenuItem>
                   )}
