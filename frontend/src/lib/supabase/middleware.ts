@@ -8,8 +8,8 @@ export async function updateSession(request: NextRequest) {
         },
     })
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder'
+    const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co').trim()
+    const supabaseAnonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder').trim()
 
     const supabase = createServerClient(
         supabaseUrl,
@@ -45,14 +45,26 @@ export async function updateSession(request: NextRequest) {
         return NextResponse.redirect(url)
     }
 
-    // Role-based access control
-    if (user && request.nextUrl.pathname.startsWith('/dashboard')) {
+    // Role-based access control and Root redirect
+    if (user && (request.nextUrl.pathname.startsWith('/dashboard') || request.nextUrl.pathname === '/' || request.nextUrl.pathname === '/marketplace')) {
         const { data: profile } = await supabase
             .from('profiles')
             .select('role')
             .eq('id', user.id)
             .single()
 
+        // Redirect providers to their dashboard if they are on "client" pages
+        if (profile?.role === 'provider') {
+            const isAtProviderDashboard = request.nextUrl.pathname.startsWith('/dashboard/provider')
+            const isAtAdminDashboard = request.nextUrl.pathname.startsWith('/dashboard/admin')
+
+            // If a provider lands on root, marketplace, or user dashboard, send them to provider dashboard
+            if (!isAtProviderDashboard && !isAtAdminDashboard) {
+                return NextResponse.redirect(new URL('/dashboard/provider', request.url))
+            }
+        }
+
+        // Standard Admin check
         if (
             request.nextUrl.pathname.startsWith('/dashboard/admin') &&
             profile?.role !== 'admin'
@@ -60,6 +72,7 @@ export async function updateSession(request: NextRequest) {
             return NextResponse.redirect(new URL('/', request.url))
         }
 
+        // Standard User check (e.g. users shouldn't be in provider dashboard)
         if (
             request.nextUrl.pathname.startsWith('/dashboard/provider') &&
             profile?.role !== 'provider'

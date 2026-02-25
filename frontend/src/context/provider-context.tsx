@@ -47,8 +47,11 @@ export type Booking = {
     serviceName: string
     clientId: string
     clientName: string
+    clientPhone?: string
+    clientEmail?: string
     date: string
     time: string
+    location?: string
     status: "pending" | "confirmed" | "rejected" | "completed" | "rescheduled" | "cancellation_requested" | "cancelled"
     amount: number
     guests: number
@@ -80,7 +83,7 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
                 .from('services')
                 .select(`
                     *,
-                    profiles!inner (
+                    profiles!provider_id (
                         status,
                         full_name,
                         phone,
@@ -134,39 +137,96 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
     const fetchBookings = useCallback(async () => {
         if (!user || user.role !== 'provider') return
 
-        const { data, error } = await supabase
-            .from('bookings')
-            .select(`
-                *,
-                profiles:client_id (full_name),
-                services:service_id (title)
-            `)
-            .eq('provider_id', user.id)
+        console.log("DEBUG - Fetching bookings for provider:", user.id)
 
-        if (error) {
-            console.error("Error fetching bookings:", error)
-            return
-        }
+        try {
+            // Try with join first
+            const { data, error } = await supabase
+                .from('bookings')
+                .select(`
+                    *,
+                    profiles:client_id (full_name, phone, email),
+                    services:service_id (title, location)
+                `)
+                .eq('provider_id', user.id)
 
-        if (data) {
-            const mappedBookings: Booking[] = data.map((b: any) => ({
-                id: b.id,
-                serviceId: b.service_id,
-                serviceName: b.services?.title || 'Unknown Service',
-                clientId: b.client_id,
-                clientName: b.profiles?.full_name || 'Unknown Client',
-                date: b.date,
-                time: b.time,
-                status: b.status,
-                amount: b.total_price || 0,
-                guests: b.guests,
-                specifications: b.specifications,
-                proposedDate: b.proposed_date,
-                cancellationReason: b.cancellation_reason,
-                cancelledBy: b.cancelled_by,
-                cancelledAt: b.cancelled_at,
-            }))
-            setBookings(mappedBookings)
+            if (error) {
+                console.warn("Join fetch failed, trying fallback:", error.message)
+
+                // Fallback: Fetch bookings only
+                const { data: bookingsData, error: bookingsError } = await supabase
+                    .from('bookings')
+                    .select('*')
+                    .eq('provider_id', user.id)
+
+                if (bookingsError) {
+                    console.error("Fallback fetch also failed:", bookingsError)
+                    return
+                }
+
+                if (bookingsData) {
+                    // Manual join resolution
+                    const resolvedBookings = await Promise.all(bookingsData.map(async (b: any) => {
+                        // Fetch profile
+                        const { data: profile } = await supabase
+                            .from('profiles')
+                            .select('full_name, phone, email')
+                            .eq('id', b.client_id)
+                            .single()
+
+                        // Fetch service
+                        const { data: service } = await supabase
+                            .from('services')
+                            .select('title, location')
+                            .eq('id', b.service_id)
+                            .single()
+
+                        return {
+                            id: b.id,
+                            serviceId: b.service_id,
+                            serviceName: service?.title || 'Servicio desconocido',
+                            clientId: b.client_id,
+                            clientName: profile?.full_name || 'Cliente (Nombre no disponible)',
+                            clientPhone: profile?.phone || 'No especificado',
+                            clientEmail: profile?.email || '',
+                            date: b.date,
+                            time: b.time,
+                            location: service?.location || 'No especificada',
+                            status: b.status,
+                            amount: b.total_price || 0,
+                            guests: b.guests,
+                            specifications: b.specifications,
+                            proposedDate: b.proposed_date,
+                        } as Booking
+                    }))
+                    setBookings(resolvedBookings)
+                }
+            } else if (data) {
+                console.log("Bookings fetched with join:", data.length)
+                const mappedBookings: Booking[] = data.map((b: any) => ({
+                    id: b.id,
+                    serviceId: b.service_id,
+                    serviceName: b.services?.title || 'Servicio desconocido',
+                    clientId: b.client_id,
+                    clientName: b.profiles?.full_name || 'Cliente (Nombre no disponible)',
+                    clientPhone: b.profiles?.phone || 'No especificado',
+                    clientEmail: b.profiles?.email || '',
+                    date: b.date,
+                    time: b.time,
+                    location: b.services?.location || 'No especificada',
+                    status: b.status,
+                    amount: b.total_price || 0,
+                    guests: b.guests,
+                    specifications: b.specifications,
+                    proposedDate: b.proposed_date,
+                    cancellationReason: b.cancellation_reason,
+                    cancelledBy: b.cancelled_by,
+                    cancelledAt: b.cancelled_at,
+                }))
+                setBookings(mappedBookings)
+            }
+        } catch (err) {
+            console.error("Critical error in fetchBookings:", err)
         }
     }, [user, supabase])
 

@@ -138,6 +138,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (event === 'SIGNED_IN' && session?.user) {
                 setAuthError(null) // Clear error on new sign in
                 await fetchProfile(session.user.id, session.user.email!)
+
+                // Fallback client-side redirection for session restoration
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('role')
+                    .eq('id', session.user.id)
+                    .single()
+
+                if (profile?.role === 'provider') {
+                    const path = window.location.pathname
+                    // If on root, marketplace, or user dashboard, redirect to provider dashboard
+                    if (path === '/' || path === '/marketplace' || path.startsWith('/dashboard/user')) {
+                        router.push('/dashboard/provider')
+                    }
+                }
             } else if (event === 'SIGNED_OUT') {
                 setUser(null)
                 setAuthError(null)
