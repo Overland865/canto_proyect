@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Frontend platform for Local_Space",
   "scripts": {
-    "dev": "next dev -p 4200",
+    "dev": "next dev -p 4200 --turbo",
     "build": "next build",
     "start": "next start -p 4200",
     "lint": "eslint"
