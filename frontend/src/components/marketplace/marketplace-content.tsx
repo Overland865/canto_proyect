@@ -63,8 +63,9 @@ export function MarketplaceContent({ initialCategory, initialSearch }: { initial
             service.category.toLowerCase().includes(searchValue.toLowerCase())
 
         const matchesRating = (service.rating || 0) >= minRating
+        const isActive = service.is_active !== false // By default true, or explicitly true. Filter if exactly false.
 
-        return matchesCategory && matchesPrice && matchesSearch && matchesRating
+        return matchesCategory && matchesPrice && matchesSearch && matchesRating && isActive
     })
 
     const sortedServices = [...filteredServices].sort((a, b) => {

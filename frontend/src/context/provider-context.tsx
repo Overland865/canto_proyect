@@ -26,6 +26,7 @@ export type Service = {
     capacity?: number
     tables?: number
     chairs?: number
+    is_active?: boolean
 }
 
 type ProviderContextType = {
@@ -33,6 +34,7 @@ type ProviderContextType = {
     addService: (service: Omit<Service, "id" | "providerId">) => Promise<void>
     updateService: (id: string, updates: Partial<Service>) => Promise<void>
     deleteService: (id: string) => Promise<void>
+    toggleServiceStatus: (id: string, isActive: boolean) => Promise<void>
     getMyServices: () => Service[]
     getAllServices: () => Service[]
     bookings: Booking[]
@@ -51,7 +53,9 @@ export type Booking = {
     clientEmail?: string
     date: string
     time: string
-    location?: string
+    location?: string        // venue address provided by the client when booking
+    eventName?: string       // name of the event
+    eventTime?: string       // time of the event
     status: "pending" | "confirmed" | "rejected" | "completed" | "rescheduled" | "cancellation_requested" | "cancelled"
     amount: number
     guests: number
@@ -94,6 +98,7 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
 
             if (error) {
                 console.error("Error fetching services:", error)
+                console.error("Error details:", JSON.stringify(error, null, 2))
                 return
             }
 
@@ -120,7 +125,8 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
                     providerAvatar: s.profiles?.avatar_url || "",
                     capacity: s.capacity,
                     tables: s.tables,
-                    chairs: s.chairs
+                    chairs: s.chairs,
+                    is_active: s.is_active
                 }))
 
                 const finalServices = mappedServices.map((s: any) => ({
@@ -140,90 +146,66 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
         console.log("DEBUG - Fetching bookings for provider:", user.id)
 
         try {
-            // Try with join first
-            const { data, error } = await supabase
+            // Since Supabase schema cache is failing to resolve the multiple FKs to `profiles` 
+            // from the `bookings` table (client_id, provider_id), we will fetch bookings first 
+            // and resolve profiles and services manually to guarantee it works.
+            const { data: bookingsData, error } = await supabase
                 .from('bookings')
-                .select(`
-                    *,
-                    profiles:client_id (full_name, phone, email),
-                    services:service_id (title, location)
-                `)
+                .select('*')
                 .eq('provider_id', user.id)
+                .order('date', { ascending: false })
 
             if (error) {
-                console.warn("Join fetch failed, trying fallback:", error.message)
+                console.error("Critical error fetching raw bookings:", error.message)
+                return
+            }
 
-                // Fallback: Fetch bookings only
-                const { data: bookingsData, error: bookingsError } = await supabase
-                    .from('bookings')
-                    .select('*')
-                    .eq('provider_id', user.id)
+            console.log("DEBUG - Raw bookings fetched:", bookingsData?.length || 0)
 
-                if (bookingsError) {
-                    console.error("Fallback fetch also failed:", bookingsError)
-                    return
-                }
+            if (bookingsData && bookingsData.length > 0) {
+                // Manually resolve profiles and services to bypass the schema cache join errors
+                const resolvedBookings = await Promise.all(bookingsData.map(async (b: any) => {
+                    // Fetch profile
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('full_name, phone, email')
+                        .eq('id', b.client_id)
+                        .single()
 
-                if (bookingsData) {
-                    // Manual join resolution
-                    const resolvedBookings = await Promise.all(bookingsData.map(async (b: any) => {
-                        // Fetch profile
-                        const { data: profile } = await supabase
-                            .from('profiles')
-                            .select('full_name, phone, email')
-                            .eq('id', b.client_id)
-                            .single()
+                    // Fetch service
+                    const { data: service } = await supabase
+                        .from('services')
+                        .select('title, location')
+                        .eq('id', b.service_id)
+                        .single()
 
-                        // Fetch service
-                        const { data: service } = await supabase
-                            .from('services')
-                            .select('title, location')
-                            .eq('id', b.service_id)
-                            .single()
-
-                        return {
-                            id: b.id,
-                            serviceId: b.service_id,
-                            serviceName: service?.title || 'Servicio desconocido',
-                            clientId: b.client_id,
-                            clientName: profile?.full_name || 'Cliente (Nombre no disponible)',
-                            clientPhone: profile?.phone || 'No especificado',
-                            clientEmail: profile?.email || '',
-                            date: b.date,
-                            time: b.time,
-                            location: service?.location || 'No especificada',
-                            status: b.status,
-                            amount: b.total_price || 0,
-                            guests: b.guests,
-                            specifications: b.specifications,
-                            proposedDate: b.proposed_date,
-                        } as Booking
-                    }))
-                    setBookings(resolvedBookings)
-                }
-            } else if (data) {
-                console.log("Bookings fetched with join:", data.length)
-                const mappedBookings: Booking[] = data.map((b: any) => ({
-                    id: b.id,
-                    serviceId: b.service_id,
-                    serviceName: b.services?.title || 'Servicio desconocido',
-                    clientId: b.client_id,
-                    clientName: b.profiles?.full_name || 'Cliente (Nombre no disponible)',
-                    clientPhone: b.profiles?.phone || 'No especificado',
-                    clientEmail: b.profiles?.email || '',
-                    date: b.date,
-                    time: b.time,
-                    location: b.services?.location || 'No especificada',
-                    status: b.status,
-                    amount: b.total_price || 0,
-                    guests: b.guests,
-                    specifications: b.specifications,
-                    proposedDate: b.proposed_date,
-                    cancellationReason: b.cancellation_reason,
-                    cancelledBy: b.cancelled_by,
-                    cancelledAt: b.cancelled_at,
+                    return {
+                        id: b.id,
+                        serviceId: b.service_id,
+                        serviceName: service?.title || 'Servicio desconocido',
+                        clientId: b.client_id,
+                        clientName: profile?.full_name || 'Cliente (sin nombre)',
+                        clientPhone: profile?.phone || undefined,
+                        clientEmail: profile?.email || '',
+                        date: b.date,
+                        time: b.event_time || b.time || '',
+                        eventName: b.event_name || undefined,
+                        eventTime: b.event_time || undefined,
+                        location: b.location || undefined,
+                        status: b.status,
+                        amount: b.total_price || 0,
+                        guests: b.guests,
+                        specifications: b.specifications,
+                        proposedDate: b.proposed_date,
+                        cancellationReason: b.cancellation_reason,
+                        cancelledBy: b.cancelled_by,
+                        cancelledAt: b.cancelled_at,
+                    } as Booking
                 }))
-                setBookings(mappedBookings)
+
+                setBookings(resolvedBookings)
+            } else {
+                setBookings([])
             }
         } catch (err) {
             console.error("Critical error in fetchBookings:", err)
@@ -240,9 +222,11 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
 
         if (!error) {
             // Optimistic update
-            setBookings(prev => prev.map(b => b.id === id ? { ...b, status, proposedDate: updateData.proposed_date } : b))
+            setBookings(prev => prev.map(b => b.id === id ? { ...b, status, proposedDate: updateData.proposed_date || b.proposedDate } : b))
         } else {
-            console.error("Error updating booking:", error)
+            console.error("Error updating booking status in DB:", error)
+            // Show alert or toast if possible, though toast is not imported here natively.
+            // Leaving error log for diagnostics.
         }
     }
 
@@ -290,6 +274,9 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
                 providerId: data.provider_id
             }
             setServices((prev) => [...prev, newService])
+        } else {
+            console.error("Error creating service:", error)
+            throw error
         }
     }
 
@@ -297,6 +284,26 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
         const { error } = await supabase.from('services').delete().eq('id', id)
         if (!error) {
             setServices((prev) => prev.filter((s) => s.id !== id))
+        }
+    }
+
+    const toggleServiceStatus = async (id: string, isActive: boolean) => {
+        if (!user) return
+
+        // Optimistic update
+        setServices(prev => prev.map(s => s.id === id ? { ...s, is_active: isActive } : s))
+
+        const { error } = await supabase
+            .from('services')
+            .update({ is_active: isActive })
+            .eq('id', id)
+            .eq('provider_id', user.id)
+
+        if (error) {
+            console.error("Error toggling service status:", error)
+            // Rollback on error
+            setServices(prev => prev.map(s => s.id === id ? { ...s, is_active: !isActive } : s))
+            throw error
         }
     }
 
@@ -328,7 +335,7 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
 
 
     const getAllServices = () => {
-        return services
+        return services.filter(s => s.is_active !== false)
     }
 
     return (
@@ -338,6 +345,7 @@ export function ProviderProvider({ children }: { children: React.ReactNode }) {
                 addService,
                 updateService,
                 deleteService,
+                toggleServiceStatus,
                 getMyServices,
                 getAllServices,
                 bookings,

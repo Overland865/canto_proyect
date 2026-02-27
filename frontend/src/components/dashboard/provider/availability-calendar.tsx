@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Calendar } from "@/components/ui/calendar"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -27,13 +27,55 @@ export function AvailabilityCalendar() {
     const { user } = useAuth()
     const { bookings } = useProvider()
     const [blockedDates, setBlockedDates] = useState<Date[]>([])
-    const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
+    const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
     const [loading, setLoading] = useState(false)
     const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
-    const supabase = createClient()
+    const [calendarKey, setCalendarKey] = useState(0)
+    
+    // Memoizar supabase para evitar reconstrucción en cada render
+    const supabase = useMemo(() => createClient(), [])
+
+    // Inicializar selectedDate solo en cliente para evitar hidratación
+    useEffect(() => {
+        if (!selectedDate) {
+            setSelectedDate(new Date())
+        }
+    }, [])
+
+    // Reiniciar states si hay error prolongado
+    useEffect(() => {
+        if (loading) {
+            const timeout = setTimeout(() => {
+                setLoading(false)
+                toast.error("La operación tomó demasiado tiempo. Intenta nuevamente.")
+            }, 8000)
+            return () => clearTimeout(timeout)
+        }
+    }, [loading])
+
+    // Función para verificar si el evento ya pasó
+    const isEventPassed = (dateStr: string): boolean => {
+        if (!dateStr) return false
+        let eventDate: Date
+        
+        if (dateStr.includes('-')) {
+            const [year, month, day] = dateStr.split('-')
+            eventDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+        } else if (dateStr.includes('/')) {
+            const [day, month, year] = dateStr.split('/')
+            eventDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+        } else {
+            eventDate = new Date(dateStr)
+        }
+        
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        eventDate.setHours(0, 0, 0, 0)
+        return eventDate < today
+    }
 
     const fetchBlockedDates = async () => {
-        if (!user) return
+        if (!user?.id) return
         try {
             const blocked = await getProviderBlockedDates(supabase, user.id)
             setBlockedDates(blocked)
@@ -43,8 +85,10 @@ export function AvailabilityCalendar() {
     }
 
     useEffect(() => {
-        fetchBlockedDates()
-    }, [user])
+        if (user?.id) {
+            fetchBlockedDates()
+        }
+    }, [user?.id])
 
     // Derive booked dates from context
     const bookedDates = bookings
@@ -55,23 +99,92 @@ export function AvailabilityCalendar() {
         ? bookings.filter(b => isSameDay(parseISO(b.date), selectedDate))
         : []
 
+    // Función para verificar si un día es pasado
+    const isPastDay = (day: Date): boolean => {
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const checkDay = new Date(day)
+        checkDay.setHours(0, 0, 0, 0)
+        return checkDay < today
+    }
+
+    // Función para verificar si un día es clickeable
+    const isDayClickable = (day: Date): boolean => {
+        // Los días futuros/hoy siempre son clickeables
+        if (!isPastDay(day)) {
+            return true
+        }
+
+        // Para días pasados, solo si tienen reservas
+        const dateStr = format(day, "yyyy-MM-dd")
+        const hasBookings = bookings.some(b => b.date === dateStr && (b.status === 'confirmed' || b.status === 'pending'))
+        return hasBookings
+    }
+
     const handleDayClick = async (day: Date) => {
         if (!user) return
-        setSelectedDate(day)
+
+        // Validar que el día sea clickeable
+        if (!isDayClickable(day)) {
+            toast.error("No puedes seleccionar este día")
+            return
+        }
 
         const dateStr = format(day, "yyyy-MM-dd")
         const isBooked = bookings.some(b => b.date === dateStr && (b.status === 'confirmed' || b.status === 'pending'))
 
-        if (isBooked) return
+        // Si es un día pasado, solo mostrar las reservas
+        if (isPastDay(day)) {
+            setSelectedDate(day)
+            return
+        }
 
+        // No bloquear el día actual
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const checkDay = new Date(day)
+        checkDay.setHours(0, 0, 0, 0)
+        if (isSameDay(checkDay, today)) {
+            setSelectedDate(day)
+            toast.error("No puedes bloquear el día actual")
+            return
+        }
+
+        // No bloquear días con reservas confirmadas
+        if (isBooked) {
+            setSelectedDate(day)
+            toast.info("Este día tiene reservas confirmadas, no se puede bloquear")
+            return
+        }
+
+        // Para días futuros sin reservas, hacer toggle de bloqueo
         setLoading(true)
         try {
+            // Toggle blocked status
             const nowBlocked = await toggleProviderBlockedDate(supabase, user.id, dateStr)
-            toast.success(nowBlocked ? "Día bloqueado" : "Día desbloqueado")
-            await fetchBlockedDates()
+            
+            // Fetch updated blocked dates from server
+            const updated = await getProviderBlockedDates(supabase, user.id)
+            setBlockedDates(updated)
+            
+            // Trigger calendar refresh
+            setCalendarKey(prev => prev + 1)
+            
+            // Show confirmation with visual feedback
+            if (nowBlocked) {
+                toast.success("📍 Día bloqueado - No aceptarás reservas en esta fecha", {
+                    duration: 3000
+                })
+            } else {
+                toast.success("🔓 Día desbloqueado - Vuelves a estar disponible", {
+                    duration: 3000
+                })
+            }
         } catch (error: any) {
-            console.error(error)
+            console.error("Error updating blocked date:", error)
             toast.error("Error al actualizar disponibilidad")
+            // Refetch en caso de error
+            await fetchBlockedDates()
         } finally {
             setLoading(false)
         }
@@ -96,27 +209,30 @@ export function AvailabilityCalendar() {
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="flex justify-center p-4">
-                    <Calendar
-                        mode="single"
-                        locale={es}
-                        selected={selectedDate}
-                        onSelect={(d) => d && handleDayClick(d)}
-                        modifiers={{
-                            blocked: blockedDates,
-                            booked: bookedDates
-                        }}
-                        modifiersStyles={{
-                            blocked: { backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: 'bold' },
-                            booked: { backgroundColor: '#dcfce7', color: '#166534', fontWeight: 'bold' }
-                        }}
-                        disabled={loading}
-                        className="rounded-md border-0 w-full max-w-sm"
-                    />
+                <CardContent className="flex justify-center p-4" suppressHydrationWarning>
+                    {selectedDate && (
+                        <Calendar
+                            key={calendarKey}
+                            mode="single"
+                            locale={es}
+                            selected={selectedDate}
+                            onSelect={(d) => d && handleDayClick(d)}
+                            modifiers={{
+                                blocked: blockedDates,
+                                booked: bookedDates
+                            }}
+                            modifiersStyles={{
+                                blocked: { backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: 'bold' },
+                                booked: { backgroundColor: '#dcfce7', color: '#166534', fontWeight: 'bold' }
+                            }}
+                            disabled={(day) => !isDayClickable(day)}
+                            className="rounded-md border-0 w-full max-w-sm"
+                        />
+                    )}
                 </CardContent>
                 <CardFooter className="pt-0 border-t bg-slate-50/50 p-4 rounded-b-lg">
                     <p className="text-xs text-muted-foreground text-center w-full italic">
-                        Selecciona un día para gestionar disponibilidad o ver reservas.
+                        Selecciona cualquier día para ver sus reservas. Solo puedes bloquear días futuros.
                     </p>
                 </CardFooter>
             </Card>
@@ -124,20 +240,33 @@ export function AvailabilityCalendar() {
             {/* Right Column: Bookings Details */}
             <Card className="lg:col-span-3 shadow-sm min-h-[480px] flex flex-col border-slate-200">
                 <CardHeader className="bg-slate-50/50 border-b pb-4">
-                    <div className="flex justify-between items-start">
-                        <div>
+                    <div className="flex justify-between items-start gap-4">
+                        <div className="flex-1">
                             <CardTitle className="text-lg font-bold text-slate-800">
                                 {selectedDate ? format(selectedDate, "PPPP", { locale: es }) : "Seleccione una fecha"}
                             </CardTitle>
                             <CardDescription className="capitalize font-medium text-primary/80">
-                                {bookingsForSelectedDate.length} {bookingsForSelectedDate.length === 1 ? 'reserva para hoy' : 'reservas registradas'}
+                                {bookingsForSelectedDate.length} {bookingsForSelectedDate.length === 1 ? 'reserva' : 'reservas registradas'}
                             </CardDescription>
                         </div>
-                        {selectedDate && (
-                            <Badge variant="outline" className="bg-white px-3 py-1 shadow-sm text-slate-600 border-slate-200">
-                                {format(selectedDate, "dd/MM/yyyy")}
-                            </Badge>
-                        )}
+                        <div className="flex flex-col gap-2 items-end">
+                            {selectedDate && (
+                                <>
+                                    <Badge variant="outline" className="bg-white px-3 py-1 shadow-sm text-slate-600 border-slate-200">
+                                        {format(selectedDate, "dd/MM/yyyy")}
+                                    </Badge>
+                                    {selectedDate && !isPastDay(selectedDate) && (
+                                        <Badge className={
+                                            blockedDates.some(d => isSameDay(d, selectedDate))
+                                                ? "bg-red-100 text-red-700 border border-red-200"
+                                                : "bg-green-100 text-green-700 border border-green-200"
+                                        }>
+                                            {blockedDates.some(d => isSameDay(d, selectedDate)) ? "🔴 Bloqueado" : "🟢 Disponible"}
+                                        </Badge>
+                                    )}
+                                </>
+                            )}
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent className="flex-1 p-6 bg-white">
@@ -182,17 +311,20 @@ export function AvailabilityCalendar() {
 
                                         <div className="flex flex-col items-end justify-between self-stretch gap-4">
                                             <Badge
-                                                variant={booking.status === 'confirmed' ? 'default' : 'secondary'}
+                                                variant={booking.status === 'confirmed' && isEventPassed(booking.date) ? 'secondary' : booking.status === 'confirmed' ? 'default' : 'secondary'}
                                                 className={`
                                                     px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
-                                                    ${booking.status === 'confirmed'
-                                                        ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200 shadow-sm'
-                                                        : 'bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200 shadow-sm'}
+                                                    ${booking.status === 'confirmed' && isEventPassed(booking.date)
+                                                        ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200 shadow-sm'
+                                                        : booking.status === 'confirmed'
+                                                            ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200 shadow-sm'
+                                                            : 'bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200 shadow-sm'}
                                                 `}
                                             >
-                                                {booking.status === 'confirmed' ? 'Confirmada' :
-                                                    booking.status === 'pending' ? 'Pendiente' :
-                                                        booking.status === 'cancelled' ? 'Cancelada' : booking.status}
+                                                {booking.status === 'confirmed' && isEventPassed(booking.date) ? 'Finalizado' :
+                                                    booking.status === 'confirmed' ? 'Confirmada' :
+                                                        booking.status === 'pending' ? 'Pendiente' :
+                                                            booking.status === 'cancelled' ? 'Cancelada' : booking.status}
                                             </Badge>
                                             <div className="text-right">
                                                 <span className="text-xs text-slate-400 font-medium block">Total</span>
@@ -202,7 +334,7 @@ export function AvailabilityCalendar() {
                                     </div>
 
                                     {/* Accent line for visual separation */}
-                                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 transition-all ${booking.status === 'confirmed' ? 'bg-emerald-500' : 'bg-amber-400'}`} />
+                                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 transition-all ${booking.status === 'confirmed' && isEventPassed(booking.date) ? 'bg-slate-500' : booking.status === 'confirmed' ? 'bg-emerald-500' : 'bg-amber-400'}`} />
                                 </div>
                             ))}
                         </div>
