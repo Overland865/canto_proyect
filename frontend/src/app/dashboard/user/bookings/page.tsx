@@ -20,6 +20,28 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; badgeClass: 
     rejected: { label: "Rechazada", color: "🔴", badgeClass: "bg-red-500 text-white" },
     completed: { label: "Completado", color: "🟣", badgeClass: "bg-purple-600 text-white" },
     rescheduled: { label: "Reprogramación", color: "🟠", badgeClass: "border-orange-500 text-orange-500 bg-transparent" },
+    finalizado: { label: "Finalizado", color: "⚫", badgeClass: "bg-slate-600 text-white" },
+}
+
+// Función para verificar si el evento ya pasó
+const isEventPassed = (dateStr: string): boolean => {
+    if (!dateStr) return false
+    let eventDate: Date
+    
+    if (dateStr.includes('-')) {
+        const [year, month, day] = dateStr.split('-')
+        eventDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+    } else if (dateStr.includes('/')) {
+        const [day, month, year] = dateStr.split('/')
+        eventDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+    } else {
+        eventDate = new Date(dateStr)
+    }
+    
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    eventDate.setHours(0, 0, 0, 0)
+    return eventDate < today
 }
 
 export default function UserBookingsPage() {
@@ -35,7 +57,7 @@ export default function UserBookingsPage() {
         const { data } = await supabase
             .from('bookings')
             .select('*, services(title), reviews(id)')
-            .eq('user_id', user.id)
+            .eq('client_id', user.id)
             .order('created_at', { ascending: false })
 
         if (data) {
@@ -93,13 +115,17 @@ export default function UserBookingsPage() {
         if (!user) return
         const channel = supabase
             .channel('user-bookings-page')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `user_id=eq.${user.id}` }, fetchBookings)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings', filter: `client_id=eq.${user.id}` }, fetchBookings)
             .subscribe()
         return () => { supabase.removeChannel(channel) }
     }, [user])
 
-    const getStatusConfig = (status: string) => {
-        return STATUS_CONFIG[status] || { label: status, color: "⚪", badgeClass: "" }
+    const getStatusConfig = (booking: any) => {
+        // Si el evento ya pasó y está confirmado, mostrar "Finalizado"
+        if (booking.status === 'confirmed' && isEventPassed(booking.date)) {
+            return STATUS_CONFIG['finalizado']
+        }
+        return STATUS_CONFIG[booking.status] || { label: booking.status, color: "⚪", badgeClass: "" }
     }
 
     const groupedBookings = bookings.reduce((acc, booking) => {
@@ -146,7 +172,7 @@ export default function UserBookingsPage() {
                                         </div>
                                         <div className="p-4 space-y-6 bg-card">
                                             {eventBookings.map(booking => {
-                                                const statusCfg = getStatusConfig(booking.status)
+                                                const statusCfg = getStatusConfig(booking)
                                                 return (
                                                     <div key={booking.id} className="flex flex-col md:flex-row md:items-center border-b pb-6 last:border-0 last:pb-0 gap-4">
                                                         <div className="space-y-1 flex-1">
@@ -195,8 +221,8 @@ export default function UserBookingsPage() {
                                                                 </div>
                                                             )}
 
-                                                            {/* Cancel button — only for confirmed bookings */}
-                                                            {booking.status === 'confirmed' && (
+                                                            {/* Cancel button — only for confirmed bookings that haven't passed */}
+                                                            {booking.status === 'confirmed' && !isEventPassed(booking.date) && (
                                                                 <Button
                                                                     size="sm"
                                                                     variant="outline"

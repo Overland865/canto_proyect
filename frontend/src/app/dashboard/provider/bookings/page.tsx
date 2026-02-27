@@ -39,6 +39,47 @@ export default function BookingsPage() {
     const [isRescheduling, setIsRescheduling] = useState(false)
     const [proposedDate, setProposedDate] = useState<Date | undefined>(undefined)
 
+    // Función para verificar si el evento ya pasó
+    const isEventPassed = (dateStr: string): boolean => {
+        let eventDate: Date
+        if (dateStr.includes('-')) {
+            const [year, month, day] = dateStr.split('-')
+            eventDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+        } else if (dateStr.includes('/')) {
+            const [day, month, year] = dateStr.split('/')
+            eventDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+        } else {
+            eventDate = new Date(dateStr)
+        }
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        eventDate.setHours(0, 0, 0, 0)
+        return eventDate < today
+    }
+
+    // Función para obtener el estado del booking incluyendo "Finalizado"
+    const getBookingStatusLabel = (booking: Booking): string => {
+        if (booking.status === 'confirmed' && isEventPassed(booking.date)) {
+            return 'Finalizado'
+        }
+        return booking.status === 'confirmed' ? 'Confirmada' :
+            booking.status === 'pending' ? 'Pendiente' :
+                booking.status === 'cancellation_requested' ? '⚠ Cancelación Solicitada' :
+                    booking.status === 'cancelled' ? 'Cancelada' :
+                        booking.status === 'rejected' ? 'Rechazada' : 'Completada'
+    }
+
+    // Función para obtener el color del badge según el estado
+    const getBookingStatusColor = (booking: Booking): string => {
+        if (booking.status === 'confirmed' && isEventPassed(booking.date)) {
+            return 'bg-slate-600 hover:bg-slate-700'
+        }
+        return booking.status === 'confirmed' ? 'bg-green-600 hover:bg-green-700' :
+            booking.status === 'pending' ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' :
+                booking.status === 'cancellation_requested' ? 'border-orange-500 text-orange-600 bg-orange-50' :
+                    booking.status === 'cancelled' ? 'bg-red-600' : ''
+    }
+
     const handleStatusChange = (id: string, newStatus: Booking["status"]) => {
         updateBookingStatus(id, newStatus)
     }
@@ -154,13 +195,12 @@ export default function BookingsPage() {
                                                 <div className="flex items-center gap-2">
                                                     <span className="font-semibold text-lg">{booking.time}</span>
                                                     <Badge variant={
-                                                        booking.status === 'confirmed' ? 'default' :
-                                                            booking.status === 'pending' ? 'secondary' :
-                                                                booking.status === 'rejected' ? 'destructive' : 'outline'
+                                                        booking.status === 'confirmed' && isEventPassed(booking.date) ? 'secondary' :
+                                                            booking.status === 'confirmed' ? 'default' :
+                                                                booking.status === 'pending' ? 'secondary' :
+                                                                    booking.status === 'rejected' ? 'destructive' : 'outline'
                                                     }>
-                                                        {booking.status === 'confirmed' ? 'Confirmada' :
-                                                            booking.status === 'pending' ? 'Pendiente' :
-                                                                booking.status === 'rejected' ? 'Rechazada' : 'Completada'}
+                                                        {getBookingStatusLabel(booking)}
                                                     </Badge>
                                                 </div>
                                                 <p className="font-medium">{booking.clientName}</p>
@@ -219,21 +259,13 @@ export default function BookingsPage() {
                                             </TableCell>
                                             <TableCell>
                                                 <Badge variant={
-                                                    booking.status === 'confirmed' ? 'default' :
-                                                        booking.status === 'pending' ? 'secondary' :
-                                                            booking.status === 'rejected' || booking.status === 'cancelled' ? 'destructive' :
-                                                                booking.status === 'cancellation_requested' ? 'outline' : 'outline'
-                                                } className={
-                                                    booking.status === 'confirmed' ? 'bg-green-600 hover:bg-green-700' :
-                                                        booking.status === 'pending' ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' :
-                                                            booking.status === 'cancellation_requested' ? 'border-orange-500 text-orange-600 bg-orange-50' :
-                                                                booking.status === 'cancelled' ? 'bg-red-600' : ''
-                                                }>
-                                                    {booking.status === 'confirmed' ? 'Confirmada' :
-                                                        booking.status === 'pending' ? 'Pendiente' :
-                                                            booking.status === 'cancellation_requested' ? '⚠ Cancelación Solicitada' :
-                                                                booking.status === 'cancelled' ? 'Cancelada' :
-                                                                    booking.status === 'rejected' ? 'Rechazada' : 'Completada'}
+                                                    booking.status === 'confirmed' && isEventPassed(booking.date) ? 'secondary' :
+                                                        booking.status === 'confirmed' ? 'default' :
+                                                            booking.status === 'pending' ? 'secondary' :
+                                                                booking.status === 'rejected' || booking.status === 'cancelled' ? 'destructive' :
+                                                                    booking.status === 'cancellation_requested' ? 'outline' : 'outline'
+                                                } className={getBookingStatusColor(booking)}>
+                                                    {getBookingStatusLabel(booking)}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-right font-bold">

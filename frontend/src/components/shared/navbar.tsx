@@ -16,9 +16,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useEffect, useState } from "react"
 
 export function Navbar() {
   const { isAuthenticated, user, logout } = useAuth()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   return (
     // Style Update V2: Azul Marino (Navy) Background
@@ -59,13 +65,12 @@ export function Navbar() {
         {/* Mobile Menu Trigger */}
         <Sheet>
           <SheetTrigger asChild>
-            <Button
-              variant="ghost"
-              className="mr-2 px-0 text-base md:hidden text-white hover:bg-white/10 hover:text-primary"
+            <button
+              className="mr-2 px-0 text-base md:hidden text-white hover:bg-white/10 hover:text-primary outline-none focus:ring-2 focus:ring-primary inline-flex items-center justify-center p-2 rounded-md transition-colors"
             >
               <Menu className="h-5 w-5" />
               <span className="sr-only">Toggle Menu</span>
-            </Button>
+            </button>
           </SheetTrigger>
           <SheetContent side="left" className="pr-0 bg-[hsl(220,55%,18%)] border-r border-[hsl(220,55%,12%)] text-white">
             <Link href="/" className="flex items-center text-white">
@@ -103,64 +108,68 @@ export function Navbar() {
           <div className="w-full flex-1 md:w-auto md:flex-none">
             {/* Search bar placeholder */}
           </div>
-          <nav className="flex items-center gap-2">
+          <nav className="flex items-center gap-2 min-h-[32px]">
             <NotificationBell />
             {user?.role !== 'provider' && <CartSheet />}
-            {isAuthenticated ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full hover:bg-white/10">
-                    <Avatar className="h-8 w-8 ring-2 ring-primary/20">
-                      <AvatarImage src={user?.avatar_url || "/avatars/01.png"} alt={user?.name} />
-                      <AvatarFallback className="bg-primary text-white font-bold border border-white/20">
-                        {user?.name?.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56 bg-[hsl(220,55%,18%)] text-white border border-[hsl(220,55%,12%)]" align="end" forceMount>
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none text-white">{user?.name} {user?.lastname}</p>
-                      <p className="text-xs leading-none text-white/60">
-                        {user?.email}
-                      </p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator className="bg-white/10" />
-                  {user?.role !== 'provider' && (
-                    <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-primary text-white cursor-pointer">
-                      <Link href="/dashboard/user/profile">
-                        Perfil
-                      </Link>
+            {mounted ? (
+              isAuthenticated ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="relative h-8 w-8 rounded-full hover:bg-white/10 outline-none focus:ring-2 focus:ring-primary/20">
+                      <Avatar className="h-8 w-8 ring-2 ring-primary/20">
+                        <AvatarImage src={user?.avatar_url || "/avatars/01.png"} alt={user?.name} />
+                        <AvatarFallback className="bg-primary text-white font-bold border border-white/20">
+                          {user?.name?.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56 bg-[hsl(220,55%,18%)] text-white border border-[hsl(220,55%,12%)]" align="end" forceMount>
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none text-white">{user?.name} {user?.lastname}</p>
+                        <p className="text-xs leading-none text-white/60">
+                          {user?.email}
+                        </p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator className="bg-white/10" />
+                    {user?.role !== 'provider' && (
+                      <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-primary text-white cursor-pointer">
+                        <Link href="/dashboard/user/profile">
+                          Perfil
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    {user?.role === 'provider' && (
+                      <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-primary text-white cursor-pointer">
+                        <Link href="/dashboard/provider">
+                          Mi Panel
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator className="bg-white/10" />
+                    <DropdownMenuItem onClick={logout} className="focus:bg-red-500/20 focus:text-red-400 text-red-300 cursor-pointer">
+                      Cerrar Sesión
                     </DropdownMenuItem>
-                  )}
-                  {user?.role === 'provider' && (
-                    <DropdownMenuItem asChild className="focus:bg-white/10 focus:text-primary text-white cursor-pointer">
-                      <Link href="/dashboard/provider">
-                        Mi Panel
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuSeparator className="bg-white/10" />
-                  <DropdownMenuItem onClick={logout} className="focus:bg-red-500/20 focus:text-red-400 text-red-300 cursor-pointer">
-                    Cerrar Sesión
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <>
+                  <Link href="/login">
+                    <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 hover:text-primary">
+                      Iniciar Sesión
+                    </Button>
+                  </Link>
+                  <Link href="/register">
+                    <Button size="sm" className="bg-primary hover:bg-primary/90 text-white font-semibold shadow-sm">
+                      Registrarse
+                    </Button>
+                  </Link>
+                </>
+              )
             ) : (
-              <>
-                <Link href="/login">
-                  <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 hover:text-primary">
-                    Iniciar Sesión
-                  </Button>
-                </Link>
-                <Link href="/register">
-                  <Button size="sm" className="bg-primary hover:bg-primary/90 text-white font-semibold shadow-sm">
-                    Registrarse
-                  </Button>
-                </Link>
-              </>
+              <div className="w-[140px] h-8" /> // Placeholder to prevent layout shift
             )}
           </nav>
         </div>

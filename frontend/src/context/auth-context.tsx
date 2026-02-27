@@ -108,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(extendedUser)
         } catch (error: any) {
             console.error("Error fetching profile:", error)
+            console.error("Error details:", JSON.stringify(error, null, 2))
             setAuthError("Profile Fetch Error: " + (error.message || JSON.stringify(error)))
             setUser(null)
         }

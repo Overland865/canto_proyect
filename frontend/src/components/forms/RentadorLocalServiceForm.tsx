@@ -11,25 +11,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 
-interface BanqueteroFormProps {
+interface RentadorLocalServiceFormProps {
   onComplete?: () => void;
 }
 
-export function BanqueteroForm({ onComplete }: BanqueteroFormProps) {
+export function RentadorLocalServiceForm({ onComplete }: RentadorLocalServiceFormProps) {
   const { user } = useAuth();
   const supabase = createClient();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const [formData, setFormData] = useState({
-    businessName: '',
+    venueName: '',
     description: '',
     capacity: '',
-    minGuests: '',
-    pricePerPerson: '',
-    cuisineTypes: '',
-    dietaryOptions: '',
-    services: '',
+    squareMeters: '',
+    pricePerHour: '',
+    pricePerDay: '',
+    location: '',
+    amenities: '',
+    parking: '',
+    catering: '',
   });
 
   const handleChange = (
@@ -48,10 +50,10 @@ export function BanqueteroForm({ onComplete }: BanqueteroFormProps) {
 
     // Validaciones
     if (
-      !formData.businessName.trim() ||
+      !formData.venueName.trim() ||
       !formData.description.trim() ||
       !formData.capacity ||
-      !formData.pricePerPerson
+      !formData.pricePerHour
     ) {
       setError('Por favor completa todos los campos requeridos');
       return;
@@ -60,21 +62,25 @@ export function BanqueteroForm({ onComplete }: BanqueteroFormProps) {
     setLoading(true);
 
     try {
-      // Actualizar datos en tabla banqueteros o services
+      // Actualizar datos en tabla de servicios
       const { error: updateError } = await supabase
         .from('provider_services')
         .upsert(
           {
             provider_id: user?.id,
-            category: 'banquetero',
-            service_name: formData.businessName,
+            category: 'rentador-local',
+            service_name: formData.venueName,
             description: formData.description,
             capacity: parseInt(formData.capacity),
-            min_guests: parseInt(formData.minGuests) || null,
-            price_per_person: parseFloat(formData.pricePerPerson),
-            cuisine_types: formData.cuisineTypes,
-            dietary_options: formData.dietaryOptions,
-            services_included: formData.services,
+            square_meters: parseInt(formData.squareMeters) || null,
+            price_per_hour: parseFloat(formData.pricePerHour),
+            price_per_day: formData.pricePerDay ? parseFloat(formData.pricePerDay) : null,
+            location: formData.location,
+            amenities: formData.amenities,
+            parking_available: formData.parking.toLowerCase().includes('sí') ||
+              formData.parking.toLowerCase().includes('yes'),
+            catering_allowed: formData.catering.toLowerCase().includes('sí') ||
+              formData.catering.toLowerCase().includes('yes'),
             updated_at: new Date(),
           },
           { onConflict: 'provider_id' }
@@ -102,9 +108,9 @@ export function BanqueteroForm({ onComplete }: BanqueteroFormProps) {
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>Información del Banquete</CardTitle>
+        <CardTitle>Información del Local</CardTitle>
         <CardDescription>
-          Proporciona detalles sobre tus servicios de catering y banquetes
+          Proporciona detalles sobre tu espacio disponible para alquilar
         </CardDescription>
       </CardHeader>
 
@@ -117,12 +123,12 @@ export function BanqueteroForm({ onComplete }: BanqueteroFormProps) {
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="businessName">Nombre del Negocio *</Label>
+            <Label htmlFor="venueName">Nombre del Local *</Label>
             <Input
-              id="businessName"
-              name="businessName"
-              placeholder="Mi Empresa de Catering"
-              value={formData.businessName}
+              id="venueName"
+              name="venueName"
+              placeholder="Mi Salón de Eventos"
+              value={formData.venueName}
               onChange={handleChange}
               disabled={loading}
               required
@@ -130,16 +136,29 @@ export function BanqueteroForm({ onComplete }: BanqueteroFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Descripción de Servicios *</Label>
+            <Label htmlFor="description">Descripción del Espacio *</Label>
             <Textarea
               id="description"
               name="description"
-              placeholder="Describe qué servicios ofreces, especialidades, experiencia..."
+              placeholder="Describe tu local, estilo, capacidad de adaptación, servicios..."
               value={formData.description}
               onChange={handleChange}
               disabled={loading}
               rows={4}
               required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="location">Ubicación/Dirección</Label>
+            <Textarea
+              id="location"
+              name="location"
+              placeholder="Ciudad, zona, referencias de ubicación"
+              value={formData.location}
+              onChange={handleChange}
+              disabled={loading}
+              rows={2}
             />
           </div>
 
@@ -150,7 +169,7 @@ export function BanqueteroForm({ onComplete }: BanqueteroFormProps) {
                 id="capacity"
                 name="capacity"
                 type="number"
-                placeholder="Ej: 150"
+                placeholder="Ej: 200"
                 value={formData.capacity}
                 onChange={handleChange}
                 disabled={loading}
@@ -159,13 +178,44 @@ export function BanqueteroForm({ onComplete }: BanqueteroFormProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="minGuests">Mínimo de Invitados</Label>
+              <Label htmlFor="squareMeters">Metros Cuadrados</Label>
               <Input
-                id="minGuests"
-                name="minGuests"
+                id="squareMeters"
+                name="squareMeters"
                 type="number"
-                placeholder="Ej: 30"
-                value={formData.minGuests}
+                placeholder="Ej: 500"
+                value={formData.squareMeters}
+                onChange={handleChange}
+                disabled={loading}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="pricePerHour">Precio por Hora (€) *</Label>
+              <Input
+                id="pricePerHour"
+                name="pricePerHour"
+                type="number"
+                step="0.01"
+                placeholder="Ej: 50"
+                value={formData.pricePerHour}
+                onChange={handleChange}
+                disabled={loading}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="pricePerDay">Precio por Día (€)</Label>
+              <Input
+                id="pricePerDay"
+                name="pricePerDay"
+                type="number"
+                step="0.01"
+                placeholder="Ej: 300"
+                value={formData.pricePerDay}
                 onChange={handleChange}
                 disabled={loading}
               />
@@ -173,56 +223,39 @@ export function BanqueteroForm({ onComplete }: BanqueteroFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="pricePerPerson">Precio por Persona (€) *</Label>
+            <Label htmlFor="amenities">Amenidades</Label>
+            <Textarea
+              id="amenities"
+              name="amenities"
+              placeholder="Ej: Aire acondicionado, Catering interno, Escenario, Iluminación LED..."
+              value={formData.amenities}
+              onChange={handleChange}
+              disabled={loading}
+              rows={2}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="parking">¿Tiene Estacionamiento? (Sí/No)</Label>
             <Input
-              id="pricePerPerson"
-              name="pricePerPerson"
-              type="number"
-              step="0.01"
-              placeholder="Ej: 35.50"
-              value={formData.pricePerPerson}
+              id="parking"
+              name="parking"
+              placeholder="Sí/No, y describe detalles si es necesario"
+              value={formData.parking}
               onChange={handleChange}
               disabled={loading}
-              required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="cuisineTypes">Tipos de Cocina</Label>
-            <Textarea
-              id="cuisineTypes"
-              name="cuisineTypes"
-              placeholder="Ej: Cocina mediterránea, Internacional, Fusión..."
-              value={formData.cuisineTypes}
+            <Label htmlFor="catering">¿Permite Catering Externo? (Sí/No)</Label>
+            <Input
+              id="catering"
+              name="catering"
+              placeholder="Sí/No, con restricciones si aplica"
+              value={formData.catering}
               onChange={handleChange}
               disabled={loading}
-              rows={2}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="dietaryOptions">Opciones Dietéticas</Label>
-            <Textarea
-              id="dietaryOptions"
-              name="dietaryOptions"
-              placeholder="Ej: Vegana, Sin gluten, Halal, Kosher..."
-              value={formData.dietaryOptions}
-              onChange={handleChange}
-              disabled={loading}
-              rows={2}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="services">Servicios Incluidos</Label>
-            <Textarea
-              id="services"
-              name="services"
-              placeholder="Ej: Chef, Meseros, Decoración, Transporte de comida..."
-              value={formData.services}
-              onChange={handleChange}
-              disabled={loading}
-              rows={2}
             />
           </div>
 
