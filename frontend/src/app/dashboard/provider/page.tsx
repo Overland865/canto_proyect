@@ -8,6 +8,7 @@ import { BookingsTab } from "@/components/dashboard/provider/bookings-tab"
 import { ServicesTab } from "@/components/dashboard/provider/services-tab"
 import { ProfileTab } from "@/components/dashboard/provider/profile-tab"
 import { AvailabilityCalendar } from "@/components/dashboard/provider/availability-calendar"
+import { MonetizationTab } from "@/components/dashboard/provider/monetization-tab"
 import { useProvider } from "@/context/provider-context"
 import { useAuth } from "@/context/auth-context"
 import { createClient } from "@/lib/supabase/client"
@@ -132,6 +133,7 @@ export default function ProviderDashboardPage() {
                         { value: "services", label: "Mis Servicios" },
                         { value: "availability", label: "Disponibilidad" },
                         { value: "profile", label: "Perfil" },
+                        { value: "monetization", label: "💎 Planes" },
                     ].map(tab => (
                         <TabsTrigger
                             key={tab.value}
@@ -171,6 +173,10 @@ export default function ProviderDashboardPage() {
 
                 <TabsContent value="profile">
                     <ProfileTab />
+                </TabsContent>
+
+                <TabsContent value="monetization">
+                    <MonetizationTab />
                 </TabsContent>
             </Tabs>
         </div>
