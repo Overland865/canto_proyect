@@ -34,13 +34,19 @@ export async function updateProfileDB(
     userId: string,
     data: ProfileUpdate
 ) {
+    // Remove any undefined values just in case
+    const cleanData = Object.fromEntries(Object.entries(data).filter(([_, v]) => v !== undefined))
+
     const { error } = await supabase
         .from("profiles")
-        .update(data)
+        .update(cleanData)
         .eq("id", userId)
 
-    if (error) throw error
-    return true
+    if (error) {
+        console.error("DEBUG - exact updateProfileDB error:", JSON.stringify(error, null, 2))
+        return { success: false, error }
+    }
+    return { success: true, error: null }
 }
 
 /**
@@ -103,12 +109,17 @@ export async function toggleFavorite(
     serviceId: string | number
 ) {
     // Check if already favorited
-    const { data: existing } = await supabase
+    const { data: existing, error: fetchError } = await supabase
         .from("favorites")
         .select("id")
         .eq("user_id", userId)
         .eq("service_id", serviceId)
         .maybeSingle()
+
+    if (fetchError) {
+        console.error("toggleFavorite fetchError:", fetchError)
+        throw fetchError
+    }
 
     if (existing) {
         // Remove favorite
@@ -116,14 +127,20 @@ export async function toggleFavorite(
             .from("favorites")
             .delete()
             .eq("id", existing.id)
-        if (error) throw error
+        if (error) {
+            console.error("toggleFavorite delete error:", error)
+            throw error
+        }
         return false
     } else {
         // Add favorite
         const { error } = await supabase
             .from("favorites")
             .insert({ user_id: userId, service_id: serviceId })
-        if (error) throw error
+        if (error) {
+            console.error("toggleFavorite insert error:", error)
+            throw error
+        }
         return true
     }
 }
@@ -242,6 +259,8 @@ export async function getFavorites(
         `)
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
+
+    console.log("getFavorites response:", data, error)
 
     if (error) throw error
 

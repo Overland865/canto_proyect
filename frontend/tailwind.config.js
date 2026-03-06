@@ -1,4 +1,5 @@
 import tailwindcssAnimate from "tailwindcss-animate";
+import defaultTheme from "tailwindcss/defaultTheme";
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -52,6 +53,17 @@ export default {
                     DEFAULT: "hsl(var(--card))",
                     foreground: "hsl(var(--card-foreground))",
                 },
+                // LocalSpace Design System
+                "ls-bg":      "#0F1216",
+                "ls-surface": "#1A1F25",
+                "ls-blue":    "#0052D4",
+                "ls-cyan":    "#00C9FF",
+                "ls-lemon":   "#98FF00",
+                "ls-golden":  "#FFB800",
+            },
+            fontFamily: {
+                outfit: ["Outfit", ...defaultTheme.fontFamily.sans],
+                inter:  ["Inter",  ...defaultTheme.fontFamily.sans],
             },
             borderRadius: {
                 lg: "var(--radius)",

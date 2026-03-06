@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect } from "react"
 import { useAuth } from "@/context/auth-context"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -14,7 +14,7 @@ import { Loader2, Upload, X, Save, Image as ImageIcon, Globe, Phone, Instagram, 
 
 export function ProfileTab() {
     const { user, updateProfile } = useAuth()
-    const supabase = createClient()
+    const supabase = React.useMemo(() => createClient(), [])
     const [isLoading, setIsLoading] = useState(true)
     const [isSaving, setIsSaving] = useState(false)
 
@@ -40,7 +40,12 @@ export function ProfileTab() {
 
     useEffect(() => {
         const loadProfile = async () => {
-            if (!user) return
+            if (!user) {
+                // If auth context finished loading and user is null, stop spinning
+                // so we don't get stuck in eternal load.
+                setIsLoading(false)
+                return
+            }
 
             try {
                 // 1. Fetch Profile Data
@@ -53,12 +58,9 @@ export function ProfileTab() {
 
                 if (error && error.code !== 'PGRST116') {
                     console.error("DEBUG - Profiles query error:", error)
-                    // We don't throw here, instead we'll try to work with whatever we got
                 }
-                console.log("DEBUG - Profiles query result:", profile)
 
                 // 2. Fetch Provider Details
-                console.log("DEBUG - Loading provider_profiles for ID:", user.id)
                 const { data: providerProfile, error: providerError } = await supabase
                     .from('provider_profiles')
                     .select('*')
@@ -68,30 +70,28 @@ export function ProfileTab() {
                 if (providerError && providerError.code !== 'PGRST116') {
                     console.error("DEBUG - Provider profiles query error:", providerError)
                 }
-                console.log("DEBUG - Provider profiles result:", providerProfile)
 
                 if (providerProfile) {
                     setBusinessName(providerProfile.business_name || "")
                 }
 
                 if (profile || providerProfile) {
-                    console.log("Profile data processing...")
                     const fullName = profile?.full_name || ""
                     const nameParts = fullName.split(' ')
                     const name = nameParts[0] || ""
                     const lastname = nameParts.slice(1).join(' ') || ""
 
                     setFormData({
-                        name: profile?.name || name,
-                        lastname: profile?.lastname || lastname,
-                        region: profile?.region || "",
-                        description: profile?.description || "",
+                        name: name,
+                        lastname: lastname,
+                        region: "",
+                        description: providerProfile?.description || "",
                         phone: providerProfile?.contact_phone || profile?.phone || "",
-                        website: profile?.website || "",
-                        social_media: profile?.social_media || { instagram: "", facebook: "", tiktok: "" },
+                        website: "",
+                        social_media: providerProfile?.social_media || { instagram: "", facebook: "", tiktok: "" },
                         avatar_url: profile?.avatar_url || "",
-                        cover_image: profile?.cover_image || "",
-                        gallery: profile?.gallery || []
+                        cover_image: providerProfile?.logo_url || "",
+                        gallery: []
                     })
                 }
 
@@ -99,12 +99,18 @@ export function ProfileTab() {
                 console.error("DEBUG - Error loading profile:", error)
                 toast.error("Error al cargar el perfil")
             } finally {
-                console.log("Setting isLoading to false")
                 setIsLoading(false)
             }
         }
 
-        loadProfile()
+        // Add a safety timeout just in case it hangs forever
+        const safetyTimeout = setTimeout(() => {
+            setIsLoading(false)
+        }, 5000)
+
+        loadProfile().then(() => clearTimeout(safetyTimeout))
+
+        return () => clearTimeout(safetyTimeout)
     }, [user])
 
     const handleInputChange = (field: string, value: string) => {
@@ -180,38 +186,37 @@ export function ProfileTab() {
         setIsSaving(true)
 
         try {
+            // 1. Base Profile Fields (profiles table)
             const profileData = {
                 full_name: `${formData.name} ${formData.lastname}`.trim(),
-                name: formData.name,
-                lastname: formData.lastname,
-                region: formData.region,
-                avatar_url: formData.avatar_url,
-                description: formData.description,
                 phone: formData.phone,
-                website: formData.website,
-                social_media: formData.social_media,
-                cover_image: formData.cover_image,
-                gallery: formData.gallery,
+                avatar_url: formData.avatar_url,
             }
 
-            // 1. Update Profile (via context to keep everything in sync)
-            // This already updates the 'profiles' table and the UI state
             await updateProfile(profileData)
 
-            // 2. Update Provider Profile (Business Name & Contact Phone)
+            // 2. Provider Profile Fields (provider_profiles table)
+            const providerProfileData = {
+                business_name: businessName,
+                contact_phone: formData.phone,
+                description: formData.description,
+                social_media: formData.social_media,
+                logo_url: formData.cover_image || null
+            }
+
             const { error: providerError } = await supabase
                 .from('provider_profiles')
-                .update({
-                    business_name: businessName,
-                    contact_phone: formData.phone
-                })
+                .update(providerProfileData)
                 .eq('id', user.id)
 
-            if (providerError) throw providerError
+            if (providerError) {
+                console.error("Provider profile update error:", providerError)
+                toast.warning("El perfil base se actualizó, pero hubo un error con los datos de proveedor.")
+            }
 
-            // No need for redundant success toast if updateProfile handles it
-        } catch (error) {
-            console.error("Error saving profile:", error)
+            // Success toast is handled by updateProfile unless there's an error
+        } catch (error: any) {
+            console.error("Error saving profile:", JSON.stringify(error))
             toast.error("Error al guardar los cambios")
         } finally {
             setIsSaving(false)
@@ -288,275 +293,270 @@ export function ProfileTab() {
                         </CardContent>
                     </Card>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Información del Negocio</CardTitle>
-                            <CardDescription>Datos básicos que verán tus clientes.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="businessName">Nombre del Negocio</Label>
-                                <Input
+                    <div className="ls-glass p-6 space-y-4">
+                        <div className="pb-3 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                            <h3 className="ls-title text-sm">Información del Negocio</h3>
+                            <p className="text-white/35 font-inter text-xs mt-1">Datos básicos que verán tus clientes.</p>
+                        </div>
+                        <div className="space-y-4">
+                            <div className="space-y-1.5">
+                                <Label htmlFor="businessName" className="text-white/60 font-inter text-xs uppercase tracking-wider">Nombre del Negocio</Label>
+                                <input
                                     id="businessName"
+                                    className="ls-input"
                                     value={businessName}
                                     onChange={(e) => setBusinessName(e.target.value)}
                                     placeholder="Nombre de tu negocio"
                                 />
-                                <p className="text-xs text-muted-foreground">Este es el nombre público que verán tus clientes.</p>
+                                <p className="text-white/35 font-inter text-xs">Este es el nombre público que verán tus clientes.</p>
                             </div>
 
-                            <div className="grid gap-2">
-                                <Label htmlFor="description">Descripción</Label>
-                                <Textarea
+                            <div className="space-y-1.5">
+                                <Label htmlFor="description" className="text-white/60 font-inter text-xs uppercase tracking-wider">Descripción</Label>
+                                <textarea
                                     id="description"
                                     placeholder="Cuéntanos sobre tu negocio, tu experiencia y lo que ofreces..."
-                                    className="min-h-[150px]"
+                                    className="ls-input min-h-[150px] resize-none"
                                     value={formData.description}
                                     onChange={(e) => handleInputChange('description', e.target.value)}
                                 />
                             </div>
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
                 </TabsContent>
 
                 {/* --- pestaña IMAGENES --- */}
                 <TabsContent value="images" className="space-y-4 py-4">
                     {/* Profile Picture (Avatar) */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Foto de Perfil</CardTitle>
-                            <CardDescription>Esta foto aparecerá junto a tu nombre en comentarios y búsquedas.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="flex items-center gap-6">
-                                <div className="relative h-24 w-24 rounded-full border-2 border-dashed border-muted-foreground/25 flex items-center justify-center bg-muted/20 overflow-hidden group shrink-0">
-                                    {formData.avatar_url ? (
-                                        <img src={formData.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                                    ) : (
-                                        <Users className="w-8 h-8 text-muted-foreground" />
-                                    )}
-                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                        <Label htmlFor="avatar-upload" className="cursor-pointer">
-                                            <Upload className="w-5 h-5 text-white" />
-                                        </Label>
-                                    </div>
-                                    <Input
-                                        id="avatar-upload"
-                                        type="file"
-                                        accept="image/*"
-                                        className="hidden"
-                                        onChange={(e) => handleImageUpload(e, 'avatar')}
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-sm font-medium">Sube una foto clara</p>
-                                    <p className="text-xs text-muted-foreground">Formato JPG, PNG o WebP. Máximo 2MB.</p>
-                                    <Button variant="outline" size="sm" className="mt-2" onClick={() => document.getElementById('avatar-upload')?.click()}>
-                                        Subir Foto
-                                    </Button>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Cover Image */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Imagen de Portada</CardTitle>
-                            <CardDescription>Esta imagen aparecerá en la parte superior de tu perfil público.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="aspect-video w-full relative rounded-lg border-2 border-dashed border-muted-foreground/25 flex items-center justify-center bg-muted/20 overflow-hidden group">
-                                {formData.cover_image ? (
-                                    <>
-                                        <img src={formData.cover_image} alt="Portada" className="w-full h-full object-cover" />
-                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                            <Label htmlFor="cover-upload" className="cursor-pointer">
-                                                <Button size="sm" variant="secondary" className="pointer-events-none">Cambiar Imagen</Button>
-                                            </Label>
-                                        </div>
-                                    </>
+                    {/* Profile Picture (Avatar) */}
+                    <div className="ls-glass p-6 space-y-4">
+                        <div className="pb-3 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                            <h3 className="ls-title text-sm">Foto de Perfil</h3>
+                            <p className="text-white/35 font-inter text-xs mt-1">Esta foto aparecerá junto a tu nombre en comentarios y búsquedas.</p>
+                        </div>
+                        <div className="flex items-center gap-6">
+                            <div className="relative h-24 w-24 rounded-full border-2 border-dashed border-white/20 flex items-center justify-center bg-white/5 overflow-hidden group shrink-0">
+                                {formData.avatar_url ? (
+                                    <img src={formData.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
                                 ) : (
-                                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                                        <ImageIcon className="w-10 h-10" />
-                                        <span>Subir imagen de portada</span>
-                                    </div>
+                                    <Users className="w-8 h-8 text-white/40" />
                                 )}
-                                <Input
-                                    id="cover-upload"
+                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <Label htmlFor="avatar-upload" className="cursor-pointer">
+                                        <Upload className="w-5 h-5 text-white" />
+                                    </Label>
+                                </div>
+                                <input
+                                    id="avatar-upload"
                                     type="file"
                                     accept="image/*"
                                     className="hidden"
-                                    onChange={(e) => handleImageUpload(e, 'cover')}
+                                    onChange={(e) => handleImageUpload(e, 'avatar')}
                                 />
-                                {!formData.cover_image && (
-                                    <Label htmlFor="cover-upload" className="absolute inset-0 cursor-pointer" />
-                                )}
                             </div>
-                        </CardContent>
-                    </Card>
+                            <div className="space-y-1">
+                                <p className="text-sm font-medium text-white/80">Sube una foto clara</p>
+                                <p className="text-xs text-white/40 font-inter">Formato JPG, PNG o WebP. Máximo 2MB.</p>
+                                <button className="mt-2 px-4 py-2 rounded-lg text-xs font-semibold text-white bg-white/10 hover:bg-white/15 transition-colors border border-white/10" onClick={() => document.getElementById('avatar-upload')?.click()}>
+                                    Subir Foto
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Cover Image */}
+                    <div className="ls-glass p-6 space-y-4">
+                        <div className="pb-3 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                            <h3 className="ls-title text-sm">Imagen de Portada</h3>
+                            <p className="text-white/35 font-inter text-xs mt-1">Esta imagen aparecerá en la parte superior de tu perfil público.</p>
+                        </div>
+                        <div className="aspect-video w-full relative rounded-xl border-2 border-dashed border-white/20 flex items-center justify-center bg-white/5 overflow-hidden group">
+                            {formData.cover_image ? (
+                                <>
+                                    <img src={formData.cover_image} alt="Portada" className="w-full h-full object-cover" />
+                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <Label htmlFor="cover-upload" className="cursor-pointer">
+                                            <div className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-white/10 backdrop-blur-md border border-white/20">Cambiar Imagen</div>
+                                        </Label>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="flex flex-col items-center gap-2 text-white/40">
+                                    <ImageIcon className="w-10 h-10" />
+                                    <span className="font-inter text-sm">Subir imagen de portada</span>
+                                </div>
+                            )}
+                            <input
+                                id="cover-upload"
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => handleImageUpload(e, 'cover')}
+                            />
+                            {!formData.cover_image && (
+                                <Label htmlFor="cover-upload" className="absolute inset-0 cursor-pointer" />
+                            )}
+                        </div>
+                    </div>
 
                     {/* Gallery */}
-                    <Card>
-                        <CardHeader>
-                            <div className="flex justify-between items-center">
-                                <div>
-                                    <CardTitle>Galería de Fotos</CardTitle>
-                                    <CardDescription>Muestra tus mejores trabajos.</CardDescription>
-                                </div>
-                                <div>
-                                    <Input
-                                        id="gallery-upload"
-                                        multiple
-                                        accept="image/*"
-                                        className="hidden"
-                                        onChange={(e) => handleImageUpload(e, 'gallery')}
-                                    />
-                                    <Button variant="outline" size="sm" onClick={() => document.getElementById('gallery-upload')?.click()}>
-                                        <Upload className="w-4 h-4 mr-2" />
-                                        Agregar Foto
-                                    </Button>
-                                </div>
+                    <div className="ls-glass p-6 space-y-4">
+                        <div className="flex justify-between items-end pb-3 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                            <div>
+                                <h3 className="ls-title text-sm">Galería de Fotos</h3>
+                                <p className="text-white/35 font-inter text-xs mt-1">Muestra tus mejores trabajos.</p>
                             </div>
-                        </CardHeader>
-                        <CardContent>
+                            <div>
+                                <input
+                                    id="gallery-upload"
+                                    type="file"
+                                    multiple
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => handleImageUpload(e, 'gallery')}
+                                />
+                                <button className="flex items-center px-4 py-2 rounded-lg text-xs font-semibold text-white bg-white/10 hover:bg-white/15 transition-colors border border-white/10" onClick={() => document.getElementById('gallery-upload')?.click()}>
+                                    <Upload className="w-4 h-4 mr-2" />
+                                    Agregar Foto
+                                </button>
+                            </div>
+                        </div>
+                        <div className="pt-2">
                             {formData.gallery.length === 0 ? (
-                                <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
+                                <div className="text-center py-12 text-white/40 border-2 border-dashed border-white/10 rounded-xl bg-white/5">
                                     No hay fotos en la galería aún.
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                     {formData.gallery.map((img, idx) => (
-                                        <div key={idx} className="relative aspect-square rounded-md overflow-hidden group border bg-muted">
+                                        <div key={idx} className="relative aspect-square rounded-xl overflow-hidden group border border-white/10 bg-white/5">
                                             <img src={img} alt={`Gallery ${idx}`} className="w-full h-full object-cover" />
-                                            <Button
-                                                variant="destructive"
-                                                size="icon"
-                                                className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            <button
+                                                className="absolute top-2 right-2 h-8 w-8 rounded-full bg-red-500/80 backdrop-blur-md text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
                                                 onClick={() => removeGalleryImage(idx)}
                                             >
-                                                <X className="w-3 h-3" />
-                                            </Button>
+                                                <X className="w-4 h-4" />
+                                            </button>
                                         </div>
                                     ))}
                                 </div>
                             )}
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
                 </TabsContent>
 
                 {/* --- pestaña SOCIAL y CONTACTO --- */}
                 <TabsContent value="social" className="space-y-4 py-4">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Contacto</CardTitle>
-                            <CardDescription>¿Cómo pueden contactarte tus clientes?</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="phone">Teléfono / WhatsApp</Label>
+                    <div className="ls-glass p-6 space-y-4">
+                        <div className="pb-3 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                            <h3 className="ls-title text-sm">Contacto</h3>
+                            <p className="text-white/35 font-inter text-xs mt-1">¿Cómo pueden contactarte tus clientes?</p>
+                        </div>
+                        <div className="space-y-4">
+                            <div className="space-y-1.5">
+                                <Label htmlFor="phone" className="text-white/60 font-inter text-xs uppercase tracking-wider">Teléfono / WhatsApp</Label>
                                 <div className="relative">
-                                    <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                    <Input
+                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+                                    <input
                                         id="phone"
-                                        className="pl-9"
+                                        className="ls-input pl-10"
                                         placeholder="+52 55 1234 5678"
                                         value={formData.phone}
                                         onChange={(e) => handleInputChange('phone', e.target.value)}
                                     />
                                 </div>
                             </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="website">Sitio Web</Label>
+                            <div className="space-y-1.5">
+                                <Label htmlFor="website" className="text-white/60 font-inter text-xs uppercase tracking-wider">Sitio Web</Label>
                                 <div className="relative">
-                                    <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                    <Input
+                                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+                                    <input
                                         id="website"
-                                        className="pl-9"
+                                        className="ls-input pl-10"
                                         placeholder="https://mi-negocio.com"
                                         value={formData.website}
                                         onChange={(e) => handleInputChange('website', e.target.value)}
                                     />
                                 </div>
                             </div>
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Redes Sociales</CardTitle>
-                            <CardDescription>Conecta tus perfiles sociales.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="instagram">Instagram</Label>
+                    <div className="ls-glass p-6 space-y-4">
+                        <div className="pb-3 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                            <h3 className="ls-title text-sm">Redes Sociales</h3>
+                            <p className="text-white/35 font-inter text-xs mt-1">Conecta tus perfiles sociales.</p>
+                        </div>
+                        <div className="space-y-4">
+                            <div className="space-y-1.5">
+                                <Label htmlFor="instagram" className="text-white/60 font-inter text-xs uppercase tracking-wider">Instagram</Label>
                                 <div className="relative">
-                                    <Instagram className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                    <Input
+                                    <Instagram className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+                                    <input
                                         id="instagram"
-                                        className="pl-9"
+                                        className="ls-input pl-10"
                                         placeholder="@usuario"
                                         value={formData.social_media.instagram}
                                         onChange={(e) => handleSocialChange('instagram', e.target.value)}
                                     />
                                 </div>
                             </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="facebook">Facebook</Label>
+                            <div className="space-y-1.5">
+                                <Label htmlFor="facebook" className="text-white/60 font-inter text-xs uppercase tracking-wider">Facebook</Label>
                                 <div className="relative">
-                                    <Facebook className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                                    <Input
+                                    <Facebook className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+                                    <input
                                         id="facebook"
-                                        className="pl-9"
+                                        className="ls-input pl-10"
                                         placeholder="Nombre de página"
                                         value={formData.social_media.facebook}
                                         onChange={(e) => handleSocialChange('facebook', e.target.value)}
                                     />
                                 </div>
                             </div>
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
                 </TabsContent>
 
 
                 {/* --- pestaña CUENTA --- */}
                 <TabsContent value="account" className="space-y-4 py-4">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Seguridad de la Cuenta</CardTitle>
-                            <CardDescription>Administra tu contraseña y métodos de acceso.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="grid gap-2">
-                                <Label>Correo Electrónico</Label>
-                                <Input value={user?.email || ''} disabled className="bg-muted" />
+                    <div className="ls-glass p-6 space-y-4">
+                        <div className="pb-3 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                            <h3 className="ls-title text-sm">Seguridad de la Cuenta</h3>
+                            <p className="text-white/35 font-inter text-xs mt-1">Administra tu contraseña y métodos de acceso.</p>
+                        </div>
+                        <div className="space-y-4">
+                            <div className="space-y-1.5">
+                                <Label className="text-white/60 font-inter text-xs uppercase tracking-wider">Correo Electrónico</Label>
+                                <input value={user?.email || ''} disabled className="ls-input opacity-50 cursor-not-allowed" />
                             </div>
-                            <div className="pt-4">
-                                <Button variant="outline" onClick={() => toast.info("Funcionalidad de cambio de contraseña próximamente.")}>
+                            <div className="pt-2">
+                                <button className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-white/10 hover:bg-white/15 transition-colors border border-white/10" onClick={() => toast.info("Funcionalidad de cambio de contraseña próximamente.")}>
                                     Cambiar Contraseña
-                                </Button>
+                                </button>
                             </div>
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Notificaciones</CardTitle>
-                            <CardDescription>Elige qué notificaciones quieres recibir.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
+                    <div className="ls-glass p-6 space-y-4">
+                        <div className="pb-3 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                            <h3 className="ls-title text-sm">Notificaciones</h3>
+                            <p className="text-white/35 font-inter text-xs mt-1">Elige qué notificaciones quieres recibir.</p>
+                        </div>
+                        <div className="pt-2">
                             <div className="flex items-center justify-between space-x-2">
                                 <Label htmlFor="n-emails" className="flex flex-col space-y-1">
-                                    <span>Correos electrónicos</span>
-                                    <span className="font-normal text-muted-foreground text-xs">Recibe correos sobre nuevas reservas.</span>
+                                    <span className="text-white/80 font-inter text-sm font-medium">Correos electrónicos</span>
+                                    <span className="font-normal text-white/40 text-xs">Recibe correos sobre nuevas reservas.</span>
                                 </Label>
-                                {/* Placeholder switches */}
-                                <div className="h-6 w-10 bg-primary/20 rounded-full relative cursor-pointer" onClick={() => toast.success("Preferencias guardadas")}>
-                                    <div className="absolute right-1 top-1 h-4 w-4 bg-primary rounded-full"></div>
+                                {/* Placeholder switches matching dark theme */}
+                                <div className="h-6 w-11 bg-white/20 rounded-full relative cursor-pointer border border-white/10" onClick={() => toast.success("Preferencias guardadas")}>
+                                    <div className="absolute right-1 top-1 h-4 w-4 bg-white rounded-full shadow-sm shadow-[#E3215D]/50 border border-white"></div>
                                 </div>
                             </div>
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
                 </TabsContent>
             </Tabs>
         </div >

@@ -1,32 +1,18 @@
 "use client"
 
 import Link from "next/link"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { CircleDollarSign, Users, Activity, AlertCircle, Plus } from "lucide-react"
-import { useProvider } from "@/context/provider-context"
-import { useAuth } from "@/context/auth-context"
-import { createClient } from "@/lib/supabase/client"
-import { AvailabilityCalendar } from "@/components/dashboard/provider/availability-calendar"
-import {
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    CartesianGrid,
-    Tooltip,
-    ResponsiveContainer,
-    Cell
-} from 'recharts'
-import { format, subDays, isSameDay } from 'date-fns'
-import { es } from 'date-fns/locale'
+import { Plus, ShieldAlert } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SummaryTab } from "@/components/dashboard/provider/summary-tab"
 import { BookingsTab } from "@/components/dashboard/provider/bookings-tab"
 import { ServicesTab } from "@/components/dashboard/provider/services-tab"
 import { ProfileTab } from "@/components/dashboard/provider/profile-tab"
+import { AvailabilityCalendar } from "@/components/dashboard/provider/availability-calendar"
+import { useProvider } from "@/context/provider-context"
+import { useAuth } from "@/context/auth-context"
+import { createClient } from "@/lib/supabase/client"
+import { subDays, isSameDay, format } from "date-fns"
+import { es } from "date-fns/locale"
 import { useState, useEffect } from "react"
 
 export default function ProviderDashboardPage() {
@@ -44,17 +30,13 @@ export default function ProviderDashboardPage() {
                 .select('views')
                 .eq('id', user.id)
                 .single()
-
             if (data) setViews(data.views || 0)
         }
         fetchStats()
     }, [user])
 
-    // Calculate Stats
     const totalBookings = bookings.length
     const pendingBookings = bookings.filter(b => b.status === 'pending').length
-
-    // Calculate Total Income (Confirmed or Completed)
     const income = bookings.reduce((sum, booking) => {
         if (booking.status === 'confirmed' || booking.status === 'completed') {
             return sum + (booking.amount || 0)
@@ -62,15 +44,12 @@ export default function ProviderDashboardPage() {
         return sum
     }, 0)
 
-    // Prepare Chart Data (Last 7 Days)
     const chartData = Array.from({ length: 7 }, (_, i) => {
         const date = subDays(new Date(), 6 - i)
         const dayIncome = bookings.reduce((sum, b) => {
             if ((b.status === 'confirmed' || b.status === 'completed') && b.date) {
                 const bDate = new Date(b.date)
-                if (isSameDay(bDate, date)) {
-                    return sum + (b.amount || 0)
-                }
+                if (isSameDay(bDate, date)) return sum + (b.amount || 0)
             }
             return sum
         }, 0)
@@ -82,42 +61,91 @@ export default function ProviderDashboardPage() {
     })
 
     if (!user || user.role !== "provider") {
-        return <div>Acceso denegado. Este panel es solo para proveedores.</div>
+        return (
+            <div className="flex items-center justify-center h-64">
+                <p className="text-white/50 font-inter">Acceso denegado. Este panel es solo para proveedores.</p>
+            </div>
+        )
     }
 
     return (
         <div className="space-y-6 container py-6">
+
+            {/* ── Header ────────────────────────────────────── */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Panel de Proveedor</h2>
-                    <p className="text-muted-foreground">Bienvenido, {user.businessName || user.name}</p>
+                    <h2 className="ls-title text-3xl tracking-tight">Panel de Proveedor</h2>
+                    <p className="text-white/50 font-inter text-sm mt-1">
+                        Bienvenido, {user.businessName || user.name}
+                    </p>
                 </div>
                 <Link href="/dashboard/provider/services/new">
-                    <Button>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Publicar Nuevo Servicio
-                    </Button>
+                    <button className="ls-btn-cta">
+                        <Plus className="h-4 w-4" />
+                        Publicar Servicio
+                    </button>
                 </Link>
             </div>
 
-            {/* Verification Integrity */}
-            <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Verificación Pendiente</AlertTitle>
-                <AlertDescription>
-                    Para publicar tus servicios, necesitas completar la verificación de identidad.
-                    <Button variant="link" className="p-0 h-auto font-bold ml-1 text-destructive underline">Subir documentos</Button>
-                </AlertDescription>
-            </Alert>
+            {/* ── Verification alert ────────────────────────── */}
+            <div
+                className="flex items-start gap-4 rounded-2xl p-4 border"
+                style={{
+                    background: "rgba(152,255,0,0.06)",
+                    borderColor: "rgba(152,255,0,0.25)",
+                }}
+            >
+                <span
+                    className="mt-0.5 flex-shrink-0 rounded-full p-2"
+                    style={{ background: "rgba(152,255,0,0.12)" }}
+                >
+                    <ShieldAlert className="h-4 w-4" style={{ color: "#98FF00" }} />
+                </span>
+                <div>
+                    <p className="font-outfit font-bold text-sm" style={{ color: "#98FF00" }}>
+                        Verificación Pendiente
+                    </p>
+                    <p className="text-white/60 font-inter text-sm mt-0.5">
+                        Para publicar tus servicios, necesitas completar la verificación de identidad.{" "}
+                        <button
+                            className="font-semibold underline underline-offset-2 transition-opacity hover:opacity-80"
+                            style={{ color: "#98FF00" }}
+                        >
+                            Subir documentos
+                        </button>
+                    </p>
+                </div>
+            </div>
 
-            {/* Dashboard Tabs */}
+            {/* ── Tabs ──────────────────────────────────────── */}
             <Tabs defaultValue="overview" className="space-y-6">
-                <TabsList className="bg-muted/50 p-1 w-full md:w-auto h-auto grid grid-cols-2 md:grid-cols-3 lg:inline-flex flex-wrap">
-                    <TabsTrigger value="overview" className="px-6 py-2">Resumen</TabsTrigger>
-                    <TabsTrigger value="bookings" className="px-6 py-2">Reservas</TabsTrigger>
-                    <TabsTrigger value="services" className="px-6 py-2">Mis Servicios</TabsTrigger>
-                    <TabsTrigger value="availability" className="px-6 py-2">Disponibilidad</TabsTrigger>
-                    <TabsTrigger value="profile" className="px-6 py-2">Perfil</TabsTrigger>
+                <TabsList
+                    className="w-full md:w-auto h-auto grid grid-cols-2 md:grid-cols-3 lg:inline-flex flex-wrap gap-1 p-1.5 rounded-2xl border"
+                    style={{
+                        background: "rgba(255,255,255,0.04)",
+                        borderColor: "rgba(255,255,255,0.08)",
+                    }}
+                >
+                    {[
+                        { value: "overview", label: "Resumen" },
+                        { value: "bookings", label: "Reservas" },
+                        { value: "services", label: "Mis Servicios" },
+                        { value: "availability", label: "Disponibilidad" },
+                        { value: "profile", label: "Perfil" },
+                    ].map(tab => (
+                        <TabsTrigger
+                            key={tab.value}
+                            value={tab.value}
+                            className="rounded-xl px-5 py-2 text-sm font-outfit font-semibold text-white/50 transition-all duration-200
+                                data-[state=active]:text-white data-[state=active]:shadow-md"
+                            style={{
+                                // Active state via CSS custom property injection via inline var isn't possible in Tailwind,
+                                // so we use a data-attribute selector defined below via a <style> tag approach, handled by the CSS class.
+                            }}
+                        >
+                            {tab.label}
+                        </TabsTrigger>
+                    ))}
                 </TabsList>
 
                 <TabsContent value="overview">
@@ -130,17 +158,11 @@ export default function ProviderDashboardPage() {
                 </TabsContent>
 
                 <TabsContent value="bookings">
-                    <BookingsTab
-                        bookings={bookings}
-                        updateStatus={updateBookingStatus}
-                    />
+                    <BookingsTab bookings={bookings} updateStatus={updateBookingStatus} />
                 </TabsContent>
 
                 <TabsContent value="services">
-                    <ServicesTab
-                        services={myServices}
-                        onDelete={deleteService}
-                    />
+                    <ServicesTab services={myServices} onDelete={deleteService} />
                 </TabsContent>
 
                 <TabsContent value="availability">

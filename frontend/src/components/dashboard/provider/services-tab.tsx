@@ -1,12 +1,10 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { useProvider } from "@/context/provider-context"
 import { toast } from "sonner"
 import Link from "next/link"
+import { LayoutGrid, Pencil, Trash2, Package } from "lucide-react"
 
 interface ServicesTabProps {
     services: any[]
@@ -20,85 +18,148 @@ export function ServicesTab({ services, onDelete }: ServicesTabProps) {
         try {
             await toggleServiceStatus(id, !currentStatus)
             toast.success(`Servicio ${!currentStatus ? 'activado' : 'pausado'} exitosamente`)
-        } catch (error) {
+        } catch {
             toast.error("Error al cambiar el estado del servicio")
         }
     }
 
     if (services.length === 0) {
         return (
-            <div className="text-center py-20 border border-dashed rounded-lg bg-muted/50">
-                <h3 className="text-lg font-medium text-muted-foreground">No tienes servicios publicados</h3>
-                <p className="text-sm text-muted-foreground mt-2">Crea tu primer servicio o paquete para empezar a vender.</p>
+            <div
+                className="flex flex-col items-center justify-center py-24 rounded-2xl border"
+                style={{ background: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)", borderStyle: "dashed" }}
+            >
+                <span
+                    className="rounded-2xl p-4 mb-4"
+                    style={{ background: "rgba(0,82,212,0.12)" }}
+                >
+                    <Package className="h-8 w-8" style={{ color: "#0052D4" }} />
+                </span>
+                <h3 className="ls-title text-base mb-1">No tienes servicios publicados</h3>
+                <p className="text-white/40 font-inter text-sm mb-5">
+                    Crea tu primer servicio o paquete para empezar a vender.
+                </p>
                 <Link href="/dashboard/provider/services/new">
-                    <Button className="mt-4" variant="outline">Crear Servicio</Button>
+                    <button className="ls-btn-cta">Crear Servicio</button>
                 </Link>
             </div>
         )
     }
 
     return (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {services.map((service) => (
-                <Card key={service.id} className={`transition-all duration-300 ${!service.is_active ? 'opacity-70 grayscale-[0.3]' : ''}`}>
-                    <CardHeader className="pb-3">
-                        <div className="flex justify-between items-start gap-4">
-                            <div className="flex-1">
-                                <CardTitle className="text-lg line-clamp-1">{service.title}</CardTitle>
-                                <div className="flex gap-2 items-center mt-2">
-                                    <Badge variant={service.type === 'package' ? "default" : "secondary"}>
-                                        {service.type === 'package' ? 'Paquete' : 'Servicio'}
-                                    </Badge>
-                                    {!service.is_active && (
-                                        <Badge variant="outline" className="text-muted-foreground bg-muted">Pausado</Badge>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="flex flex-col items-center gap-1">
-                                <Switch
-                                    checked={service.is_active ?? true}
-                                    onCheckedChange={() => handleToggle(service.id, service.is_active ?? true)}
-                                />
-                                <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
-                                    {service.is_active ? 'Activo' : 'Pausa'}
-                                </span>
-                            </div>
-                        </div>
-                        <CardDescription className="line-clamp-2 mt-2">{service.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="aspect-video bg-muted rounded-md mb-2 overflow-hidden relative">
+        <div className="space-y-4 animate-in fade-in duration-500">
+            <div className="flex items-center justify-between">
+                <h3 className="ls-title text-base">Mis Servicios ({services.length})</h3>
+                <Link href="/dashboard/provider/services/new">
+                    <button className="ls-btn-cta !py-2 !px-4 text-xs">+ Nuevo</button>
+                </Link>
+            </div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {services.map((service) => (
+                    <div
+                        key={service.id}
+                        className={`ls-glass flex flex-col transition-all duration-300 ${!service.is_active ? 'opacity-60' : ''}`}
+                    >
+                        {/* Image */}
+                        <div className="relative aspect-video overflow-hidden rounded-t-2xl">
                             {service.image ? (
-                                <img src={service.image} alt={service.title} className="w-full h-full object-cover" />
+                                <img
+                                    src={service.image}
+                                    alt={service.title}
+                                    className="w-full h-full object-cover"
+                                />
                             ) : (
-                                <div className="w-full h-full flex items-center justify-center text-muted-foreground">Sin Imagen</div>
+                                <div
+                                    className="w-full h-full flex items-center justify-center"
+                                    style={{ background: "#1A1F25" }}
+                                >
+                                    <LayoutGrid className="h-10 w-10" style={{ color: "rgba(255,255,255,0.15)" }} />
+                                </div>
                             )}
+
+                            {/* Type badge */}
+                            <span
+                                className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-outfit font-bold border"
+                                style={{
+                                    background: service.type === 'package'
+                                        ? "rgba(0,82,212,0.80)"
+                                        : "rgba(255,184,0,0.80)",
+                                    borderColor: "rgba(255,255,255,0.20)",
+                                    color: "#fff",
+                                    backdropFilter: "blur(8px)",
+                                }}
+                            >
+                                {service.type === 'package' ? 'Paquete' : 'Servicio'}
+                            </span>
+
+                            {/* Paused overlay */}
                             {!service.is_active && (
-                                <div className="absolute inset-0 bg-background/20 flex items-center justify-center backdrop-blur-[1px]">
-                                    <Badge variant="secondary" className="font-bold text-sm px-3 shadow-md">No Disponible</Badge>
+                                <div
+                                    className="absolute inset-0 flex items-center justify-center"
+                                    style={{ background: "rgba(15,18,22,0.60)", backdropFilter: "blur(2px)" }}
+                                >
+                                    <span
+                                        className="px-3 py-1 rounded-full text-xs font-outfit font-bold border"
+                                        style={{
+                                            background: "rgba(255,255,255,0.10)",
+                                            borderColor: "rgba(255,255,255,0.25)",
+                                            color: "rgba(255,255,255,0.70)",
+                                        }}
+                                    >
+                                        No Disponible
+                                    </span>
                                 </div>
                             )}
                         </div>
-                        <p className={`font-bold text-lg ${!service.is_active ? 'text-muted-foreground' : ''}`}>${service.price.toLocaleString()}</p>
-                    </CardContent>
-                    <CardFooter className="flex justify-between">
-                        <Link href={`/dashboard/provider/services/${service.id}`}>
-                            <Button variant="ghost" disabled={!service.is_active}>Editar</Button>
-                        </Link>
-                        <Button
-                            variant="outline"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => {
-                                if (confirm('¿Estás seguro de eliminar este servicio?')) {
-                                    onDelete(service.id)
-                                }
-                            }}
-                        >
-                            Eliminar
-                        </Button>
-                    </CardFooter>
-                </Card>
-            ))}
+
+                        {/* Body */}
+                        <div className="flex flex-col flex-1 p-4 gap-3">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                    <h4 className="ls-title text-sm line-clamp-1">{service.title}</h4>
+                                    <p className="text-white/40 font-inter text-xs line-clamp-2 mt-0.5">
+                                        {service.description}
+                                    </p>
+                                </div>
+                                {/* Toggle */}
+                                <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                                    <Switch
+                                        checked={service.is_active ?? true}
+                                        onCheckedChange={() => handleToggle(service.id, service.is_active ?? true)}
+                                    />
+                                    <span className="text-[10px] font-outfit uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.35)" }}>
+                                        {service.is_active ? 'Activo' : 'Pausa'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <p className="ls-price text-xl">${service.price.toLocaleString()}</p>
+
+                            <div className="flex items-center gap-2 pt-1 border-t" style={{ borderColor: "rgba(255,255,255,0.07)" }}>
+                                <Link href={`/dashboard/provider/services/${service.id}`} className="flex-1">
+                                    <button
+                                        className="w-full ls-btn-ghost !py-2 !rounded-lg text-xs"
+                                        disabled={!service.is_active}
+                                    >
+                                        <Pencil className="h-3.5 w-3.5" /> Editar
+                                    </button>
+                                </Link>
+                                <button
+                                    className="ls-btn-danger !py-2 !px-3 !rounded-lg text-xs"
+                                    onClick={() => {
+                                        if (confirm('¿Estás seguro de eliminar este servicio?')) {
+                                            onDelete(service.id)
+                                        }
+                                    }}
+                                >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
         </div>
     )
 }

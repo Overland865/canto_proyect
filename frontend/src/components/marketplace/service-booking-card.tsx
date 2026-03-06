@@ -15,7 +15,7 @@ import { useAuth } from "@/context/auth-context"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import EventContextModal from "@/components/shared/event-context-modal"
-import { createBookingExpanded } from "@/lib/supabase-service"
+import { useCart } from "@/context/cart-context"
 
 interface ServiceBookingCardProps {
     price: number
@@ -29,85 +29,25 @@ interface ServiceBookingCardProps {
 
 export function ServiceBookingCard({ price, unit, category, serviceId, providerId, serviceName, providerPhone }: ServiceBookingCardProps) {
     const { user } = useAuth()
-    const [date, setDate] = useState<Date>()
-    const [notes, setNotes] = useState("")
-    const [loading, setLoading] = useState(false)
-    const [blockedDates, setBlockedDates] = useState<Date[]>([])
-    const [isEventModalOpen, setIsEventModalOpen] = useState(false)
+    const { addToCart, items } = useCart()
 
-    const supabase = createClient()
-
-    useEffect(() => {
-        const fetchAvailability = async () => {
-            // Blocked by provider
-            const { data: blockedData } = await supabase
-                .from('provider_availability')
-                .select('date')
-                .eq('provider_id', providerId)
-                .eq('status', 'blocked')
-
-            // Already booked
-            const { data: bookingsData } = await supabase
-                .from('bookings')
-                .select('date')
-                .eq('provider_id', providerId)
-                .in('status', ['confirmed', 'completed'])
-
-            const blocked = (blockedData || []).map((d: any) => new Date(d.date))
-            const booked = (bookingsData || []).map((d: any) => new Date(d.date))
-
-            setBlockedDates([...blocked, ...booked])
-        }
-        if (providerId) fetchAvailability()
-    }, [providerId, supabase])
-
-    const handleBooking = async () => {
-        if (!user) {
-            toast.error("Inicia sesión para reservar")
-            return
-        }
-
-        if (!date) {
-            toast.error("Selecciona una fecha")
-            return
-        }
-
-        setIsEventModalOpen(true)
+    const handleAddToCart = () => {
+        // En lugar de requerir fecha ahora, simplemente lo agregamos al carrito
+        // El carrito se encarga de recolectar detalles adicionales si es necesario
+        addToCart({
+            id: serviceId,
+            title: serviceName,
+            price: price,
+            description: "Servicio agregado",
+            image: "", // Could pass image if we had it
+            category: category
+        })
+        toast.success("Agregado al carrito", {
+            description: "El servicio se ha guardado para cotización."
+        })
     }
 
-    const handleConfirmBooking = async (eventContext: any) => {
-        setIsEventModalOpen(false)
-        setLoading(true)
 
-        try {
-            await createBookingExpanded(supabase, {
-                service_id: serviceId,
-                provider_id: providerId,
-                client_id: user!.id,
-                date: date!.toISOString(),
-                total_price: price,
-                event_name: eventContext.eventName,
-                guests: eventContext.guests,
-                location: eventContext.location,
-                event_time: eventContext.eventTime,
-                status: "pending"
-            })
-
-            toast.success("Solicitud enviada con éxito", {
-                description: "El proveedor revisará tu solicitud."
-            })
-            setDate(undefined)
-            setNotes("")
-
-        } catch (error: any) {
-            console.error('Error:', error)
-            toast.error("Error al enviar solicitud", {
-                description: error.message
-            })
-        } finally {
-            setLoading(false)
-        }
-    }
 
     const handleWhatsApp = () => {
         if (!providerPhone) {
@@ -120,94 +60,56 @@ export function ServiceBookingCard({ price, unit, category, serviceId, providerI
         window.open(`https://wa.me/${finalPhone}`, '_blank')
     }
 
+    const isInCart = items.some(item => item.id === serviceId)
+
     return (
-        <Card className="shadow-xl border-primary/10 sticky top-24">
-            <CardHeader>
-                <CardTitle className="flex justify-between items-center">
-                    <span className="text-2xl font-bold">${price.toLocaleString()}</span>
-                    {unit && <span className="text-sm font-normal text-muted-foreground">/{unit}</span>}
+        <Card className="shadow-2xl border-white/5 ls-glass bg-black/40 backdrop-blur-xl">
+            <CardHeader className="pb-4">
+                <CardTitle className="flex justify-between items-end border-b border-white/10 pb-4">
+                    <span className="text-4xl font-bold font-outfit text-ls-lemon">${price.toLocaleString()}</span>
+                    {unit && <span className="text-sm font-normal text-white/50 font-inter pb-1">/{unit}</span>}
                 </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="space-y-2">
-                    <span className="text-sm font-medium">Fecha deseada</span>
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button
-                                variant={"outline"}
-                                className={cn(
-                                    "w-full justify-start text-left font-normal",
-                                    !date && "text-muted-foreground"
-                                )}
-                            >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {date ? format(date, "PPP", { locale: es }) : <span>Seleccionar fecha</span>}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                                mode="single"
-                                selected={date}
-                                onSelect={setDate}
-                                initialFocus
-                                disabled={[
-                                    { before: new Date() },
-                                    ...blockedDates
-                                ]}
-                            />
-                        </PopoverContent>
-                    </Popover>
-                </div>
-
-                <div className="space-y-2">
-                    <Label htmlFor="notes" className="text-sm font-medium">Notas o Dirección</Label>
-                    <Input
-                        id="notes"
-                        placeholder="Detalles importantes..."
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                    />
+            <CardContent className="space-y-6">
+                <div className="bg-ls-cyan/5 border border-ls-cyan/20 rounded-lg p-4 flex items-start gap-3">
+                    <CalendarCheck className="w-5 h-5 text-ls-cyan shrink-0 mt-0.5" />
+                    <p className="text-sm font-inter text-white/80 leading-relaxed">
+                        Selecciona fechas y detalles de ubicación directamente <strong className="text-ls-cyan font-semibold">desde el carrito</strong> al completar tu solicitud.
+                    </p>
                 </div>
 
                 <Button
-                    className="w-full font-bold text-md"
+                    className="w-full font-bold text-md h-12 ls-btn-cta bg-gradient-to-r from-ls-blue to-ls-cyan text-white shadow-[0_0_15px_rgba(0,201,255,0.3)] hover:shadow-[0_0_25px_rgba(0,201,255,0.5)] border-0 disabled:opacity-50 disabled:cursor-not-allowed"
                     size="lg"
-                    onClick={handleBooking}
-                    disabled={loading}
+                    onClick={handleAddToCart}
+                    disabled={isInCart}
                 >
-                    {loading ? (
+                    {isInCart ? (
                         <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Enviando...
+                            <CalendarCheck className="mr-2 h-5 w-5" />
+                            En el carrito
                         </>
                     ) : (
                         <>
-                            <CalendarCheck className="mr-2 h-4 w-4" />
-                            Solicitar Reserva
+                            <CalendarCheck className="mr-2 h-5 w-5" />
+                            Agregar al carrito
                         </>
                     )}
                 </Button>
 
                 <Button
                     variant="outline"
-                    className="w-full border-green-500 text-green-600 hover:bg-green-50"
+                    className="w-full border-green-500/50 text-green-400 bg-green-500/5 hover:bg-green-500/10 hover:text-green-300 transition-colors h-12"
                     onClick={handleWhatsApp}
                 >
-                    <MessageCircle className="mr-2 h-4 w-4" />
+                    <MessageCircle className="mr-2 h-5 w-5" />
                     Contactar por WhatsApp
                 </Button>
 
-                <p className="text-xs text-center text-muted-foreground mt-2">
+                <p className="text-xs text-center text-white/40 mt-4 font-inter">
                     No se realizará ningún cargo hasta que el proveedor acepte tu solicitud.
                 </p>
             </CardContent>
-
-            <EventContextModal
-                open={isEventModalOpen}
-                onClose={() => setIsEventModalOpen(false)}
-                onConfirm={handleConfirmBooking}
-                serviceName={serviceName}
-            />
         </Card>
     )
 }

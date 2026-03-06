@@ -1,34 +1,107 @@
 "use client"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table"
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter
-} from "@/components/ui/dialog"
-import { CalendarDays, Clock, Eye, Check, X, FileText, AlertTriangle, MapPin } from "lucide-react"
-import { Booking } from "@/context/provider-context"
 import { useState } from "react"
+import { Badge } from "@/components/ui/badge"
+import {
+    Dialog, DialogContent, DialogDescription,
+    DialogHeader, DialogTitle, DialogFooter
+} from "@/components/ui/dialog"
+import { CalendarDays, Clock, Eye, Check, X, FileText, User, Briefcase, Landmark } from "lucide-react"
+import { Booking } from "@/context/provider-context"
 import { approveCancellation, rejectCancellation } from "@/lib/supabase-service"
 import { createClient } from "@/lib/supabase/client"
 import { Calendar } from "@/components/ui/calendar"
+import { es } from "date-fns/locale"
 
 interface BookingsTabProps {
     bookings: Booking[]
     updateStatus: (id: string, status: Booking["status"], proposedDate?: Date) => void
+}
+
+const statusConfig: Record<string, { label: string; bg: string; color: string; border: string }> = {
+    confirmed: {
+        label: "Confirmada",
+        bg: "rgba(0,201,255,0.12)",
+        color: "#00C9FF",
+        border: "rgba(0,201,255,0.30)",
+    },
+    pending: {
+        label: "Pendiente",
+        bg: "rgba(255,184,0,0.12)",
+        color: "#FFB800",
+        border: "rgba(255,184,0,0.30)",
+    },
+    cancellation_requested: {
+        label: "⚠ Cancelación",
+        bg: "rgba(249,115,22,0.12)",
+        color: "#fb923c",
+        border: "rgba(249,115,22,0.30)",
+    },
+    cancelled: {
+        label: "Cancelada",
+        bg: "rgba(239,68,68,0.12)",
+        color: "#f87171",
+        border: "rgba(239,68,68,0.25)",
+    },
+    rejected: {
+        label: "Rechazada",
+        bg: "rgba(239,68,68,0.10)",
+        color: "#f87171",
+        border: "rgba(239,68,68,0.20)",
+    },
+    completed: {
+        label: "Completada",
+        bg: "rgba(152,255,0,0.10)",
+        color: "#98FF00",
+        border: "rgba(152,255,0,0.25)",
+    },
+    rescheduled: {
+        label: "Reprogramada",
+        bg: "rgba(152,255,0,0.08)",
+        color: "#98FF00",
+        border: "rgba(152,255,0,0.20)",
+    },
+    finalizado: {
+        label: "Finalizado",
+        bg: "rgba(255,255,255,0.06)",
+        color: "rgba(255,255,255,0.50)",
+        border: "rgba(255,255,255,0.10)",
+    },
+}
+
+function StatusPill({ status, date }: { status: string; date: string }) {
+    const isEventPassed = () => {
+        const eventDate = new Date(date)
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        eventDate.setHours(0, 0, 0, 0)
+        return eventDate < today
+    }
+
+    const key = status === "confirmed" && isEventPassed() ? "finalizado" : status
+    const cfg = statusConfig[key] ?? statusConfig["pending"]
+
+    return (
+        <span
+            className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-outfit font-bold uppercase tracking-wider border"
+            style={{ background: cfg.bg, color: cfg.color, borderColor: cfg.border }}
+        >
+            {cfg.label}
+        </span>
+    )
+}
+
+// Para la barra a la izquierda de cada tarjeta en el listado
+function getStatusAccent(status: string, date: string) {
+    const isEventPassed = () => {
+        const eventDate = new Date(date)
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        eventDate.setHours(0, 0, 0, 0)
+        return eventDate < today
+    }
+    const key = status === "confirmed" && isEventPassed() ? "finalizado" : status
+    return statusConfig[key]?.color ?? statusConfig["pending"].color
 }
 
 export function BookingsTab({ bookings, updateStatus }: BookingsTabProps) {
@@ -37,38 +110,6 @@ export function BookingsTab({ bookings, updateStatus }: BookingsTabProps) {
     const [isDetailsOpen, setIsDetailsOpen] = useState(false)
     const [isRescheduling, setIsRescheduling] = useState(false)
     const [proposedDate, setProposedDate] = useState<Date | undefined>(undefined)
-
-    // Función para verificar si el evento ya pasó
-    const isEventPassed = (dateStr: string): boolean => {
-        const eventDate = parseBookingDate(dateStr)
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        eventDate.setHours(0, 0, 0, 0)
-        return eventDate < today
-    }
-
-    // Función para obtener el estado del booking incluyendo "Finalizado"
-    const getBookingStatusLabel = (booking: Booking): string => {
-        if (booking.status === 'confirmed' && isEventPassed(booking.date)) {
-            return 'Finalizado'
-        }
-        return booking.status === 'confirmed' ? 'Confirmada' :
-            booking.status === 'pending' ? 'Pendiente' :
-                booking.status === 'cancellation_requested' ? '⚠ Cancelación' :
-                    booking.status === 'cancelled' ? 'Cancelada' :
-                        booking.status === 'rejected' ? 'Rechazada' : 'Completada'
-    }
-
-    // Función para obtener el color del badge según el estado
-    const getBookingStatusColor = (booking: Booking): string => {
-        if (booking.status === 'confirmed' && isEventPassed(booking.date)) {
-            return 'bg-slate-600 hover:bg-slate-700'
-        }
-        return booking.status === 'confirmed' ? 'bg-green-600 hover:bg-green-700' :
-            booking.status === 'pending' ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' :
-                booking.status === 'cancellation_requested' ? 'border-orange-500 text-orange-600 bg-orange-50' :
-                    booking.status === 'cancelled' ? 'bg-red-600' : ''
-    }
 
     const handleApproveCancellation = async (bookingId: string) => {
         try {
@@ -95,155 +136,286 @@ export function BookingsTab({ bookings, updateStatus }: BookingsTabProps) {
         setProposedDate(undefined)
     }
 
-    const parseBookingDate = (dateStr: string) => {
-        if (!dateStr) return new Date()
-        if (dateStr.includes('-')) {
-            const [year, month, day] = dateStr.split('-')
-            return new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
-        } else if (dateStr.includes('/')) {
-            const [day, month, year] = dateStr.split('/')
-            return new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
-        }
-        return new Date(dateStr)
-    }
+    const pendingCount = bookings.filter(b => b.status === 'pending').length
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Solicitudes de Reserva</CardTitle>
-                    <CardDescription>
-                        Tienes {bookings.filter(b => b.status === 'pending').length} solicitudes pendientes.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="rounded-md border overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Servicio</TableHead>
-                                    <TableHead>Evento y Cliente</TableHead>
-                                    <TableHead>Fecha/Hora</TableHead>
-                                    <TableHead>Estado</TableHead>
-                                    <TableHead className="text-right">Monto</TableHead>
-                                    <TableHead className="text-right">Acciones</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {bookings.map((booking) => (
-                                    <TableRow key={booking.id}>
-                                        <TableCell className="font-medium">{booking.serviceName}</TableCell>
-                                        <TableCell>
-                                            <div className="flex flex-col">
-                                                <span className="font-semibold text-primary">{booking.eventName || 'Sin evento'}</span>
-                                                <span>{booking.clientName}</span>
-                                                <span className="text-xs text-muted-foreground">{booking.guests} invitados</span>
+
+            <div className="ls-glass flex flex-col min-h-[480px]">
+                {/* ── Header ─────────────────────────────────────── */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-5 pb-4 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                    <div>
+                        <h3 className="ls-title text-base mb-0.5">Solicitudes de Reserva</h3>
+                        <p className="text-white/40 font-inter text-sm flex items-center gap-2">
+                            {pendingCount} {pendingCount === 1 ? "solicitud pendiente" : "solicitudes pendientes"}
+                            {pendingCount > 0 && (
+                                <span className="flex h-2 w-2 rounded-full relative">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                                </span>
+                            )}
+                        </p>
+                    </div>
+                </div>
+
+                {/* ── Cards List ─────────────────────────────────── */}
+                <div className="flex-1 p-5">
+                    {bookings.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-center space-y-4 py-16">
+                            <div className="w-20 h-20 rounded-2xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                                <CalendarDays className="w-9 h-9" style={{ color: "rgba(255,255,255,0.20)" }} />
+                            </div>
+                            <div>
+                                <h4 className="font-outfit font-bold text-white/60 text-base">Sin reservas</h4>
+                                <p className="text-sm font-inter text-white/30 mt-1 max-w-[220px]">
+                                    Aún no tienes solicitudes ni historial de reservas.
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {bookings.map((booking) => {
+                                const accent = getStatusAccent(booking.status, booking.date)
+                                return (
+                                    <div
+                                        key={booking.id}
+                                        className="group relative overflow-hidden rounded-2xl p-5 hover:scale-[1.01] transition-transform duration-200 flex flex-col justify-between"
+                                        style={{
+                                            background: "rgba(255,255,255,0.04)",
+                                            border: "1px solid rgba(255,255,255,0.08)"
+                                        }}
+                                    >
+                                        <div className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl opacity-80" style={{ background: accent }} />
+
+                                        <div className="space-y-4 mb-5">
+                                            {/* Service Name & Event */}
+                                            <div className="flex items-start gap-3 pl-2">
+                                                <div className="p-2.5 rounded-xl border flex-shrink-0" style={{ background: "var(--ls-bg)", borderColor: "rgba(255,255,255,0.10)" }}>
+                                                    <Briefcase className="w-4 h-4" style={{ color: accent }} />
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-outfit font-bold text-white text-[15px] leading-tight mb-1">
+                                                        {booking.serviceName}
+                                                    </h4>
+                                                    {booking.eventName && (
+                                                        <span className="font-inter text-xs text-white/60 bg-white/5 px-2 py-0.5 rounded border border-white/5 inline-block mb-1 line-clamp-1">
+                                                            {booking.eventName}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex flex-col text-sm">
-                                                <span className="flex items-center"><CalendarDays className="mr-1 h-3 w-3" /> {booking.date}</span>
-                                                <span className="flex items-center text-muted-foreground"><Clock className="mr-1 h-3 w-3" /> {booking.time}</span>
+
+                                            {/* Client & Date & Guests */}
+                                            <div className="space-y-2 pl-2">
+                                                <div className="flex items-center gap-2 text-white/50 text-sm font-inter">
+                                                    <User className="w-3.5 h-3.5" />
+                                                    <span className="truncate">{booking.clientName}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-white/50 text-sm font-inter">
+                                                    <CalendarDays className="w-3.5 h-3.5" />
+                                                    <span>{booking.date}, {booking.time}</span>
+                                                </div>
                                             </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge className={getBookingStatusColor(booking)}>
-                                                {getBookingStatusLabel(booking)}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right font-bold">
-                                            ${booking.amount.toLocaleString()}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex justify-end gap-2">
-                                                <Button variant="ghost" size="icon" onClick={() => openDetails(booking)}><Eye className="h-4 w-4" /></Button>
+                                        </div>
+
+                                        {/* Bottom row: Status, Price & Actions */}
+                                        <div className="flex items-center justify-between border-t border-white/5 pt-4 pl-2">
+                                            <div className="flex flex-col gap-1 items-start">
+                                                <StatusPill status={booking.status} date={booking.date} />
+                                                <span className="ls-price text-xl tracking-tight">${booking.amount}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    onClick={() => openDetails(booking)}
+                                                    className="ls-btn-ghost !px-3 !py-2 !rounded-lg"
+                                                    title="Ver detalles"
+                                                >
+                                                    <Eye className="h-4 w-4" />
+                                                </button>
                                                 {booking.status === 'pending' && (
                                                     <>
-                                                        <Button variant="outline" size="icon" className="text-green-600" onClick={() => updateStatus(booking.id, 'confirmed')}><Check className="h-4 w-4" /></Button>
-                                                        <Button variant="outline" size="icon" className="text-red-600" onClick={() => updateStatus(booking.id, 'rejected')}><X className="h-4 w-4" /></Button>
+                                                        <button
+                                                            onClick={() => updateStatus(booking.id, 'confirmed')}
+                                                            className="flex items-center justify-center rounded-lg w-9 h-9 border transition-colors hover:scale-105"
+                                                            style={{ background: "rgba(152,255,0,0.15)", borderColor: "rgba(152,255,0,0.4)", color: "#98FF00" }}
+                                                            title="Confirmar"
+                                                        >
+                                                            <Check className="h-4 w-4" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => updateStatus(booking.id, 'rejected')}
+                                                            className="flex items-center justify-center rounded-lg w-9 h-9 border transition-colors hover:scale-105"
+                                                            style={{ background: "rgba(239,68,68,0.15)", borderColor: "rgba(239,68,68,0.4)", color: "#f87171" }}
+                                                            title="Rechazar"
+                                                        >
+                                                            <X className="h-4 w-4" />
+                                                        </button>
                                                     </>
                                                 )}
                                             </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Detalle de la Solicitud</DialogTitle>
-                        <DialogDescription>ID: {selectedBooking?.id}</DialogDescription>
-                    </DialogHeader>
-                    {selectedBooking && (
-                        <div className="space-y-4 py-4">
-                            {selectedBooking.eventName && (
-                                <div className="bg-primary/10 p-3 rounded-lg border border-primary/20">
-                                    <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-1">Evento</p>
-                                    <p className="text-lg font-bold text-slate-900">{selectedBooking.eventName}</p>
-                                </div>
-                            )}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <p className="text-sm font-medium text-muted-foreground">Cliente</p>
-                                    <p className="font-semibold">{selectedBooking.clientName}</p>
-                                    {selectedBooking.clientPhone && <p className="text-xs text-muted-foreground">{selectedBooking.clientPhone}</p>}
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-sm font-medium text-muted-foreground">Servicio</p>
-                                    <p className="font-semibold">{selectedBooking.serviceName}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-sm font-medium text-muted-foreground">Fecha y Hora</p>
-                                    <p className="font-semibold">{selectedBooking.date}</p>
-                                    <p className="text-sm">{selectedBooking.time}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-sm font-medium text-muted-foreground">Detalles del Evento</p>
-                                    <p className="font-semibold">{selectedBooking.guests} invitados</p>
-                                    {selectedBooking.location && <p className="text-xs mt-1"><MapPin className="inline w-3 h-3 mr-1" />{selectedBooking.location}</p>}
-                                </div>
-                            </div>
-                            <div className="space-y-2 mt-4">
-                                <h4 className="flex items-center font-medium gap-2"><FileText className="w-4 h-4" /> Especificaciones</h4>
-                                <div className="bg-muted p-4 rounded-md text-sm">
-                                    {selectedBooking.specifications || "Sin especificaciones adicionales."}
-                                </div>
-                            </div>
+                                        </div>
+                                    </div>
+                                )
+                            })}
                         </div>
                     )}
-                    <DialogFooter>
-                        {selectedBooking?.status === 'cancellation_requested' && (
-                            <div className="flex justify-end gap-2 w-full">
-                                <Button variant="outline" onClick={() => { if (selectedBooking) handleRejectCancellation(selectedBooking.id); setIsDetailsOpen(false); }}>Rechazar</Button>
-                                <Button variant="destructive" onClick={() => { if (selectedBooking) handleApproveCancellation(selectedBooking.id); setIsDetailsOpen(false); }}>Aprobar</Button>
-                            </div>
-                        )}
-                        {selectedBooking?.status === 'pending' && !isRescheduling && (
-                            <div className="flex gap-2 w-full justify-between">
-                                <Button variant="ghost" onClick={() => setIsRescheduling(true)}>Reprogramar</Button>
-                                <div className="flex gap-2">
-                                    <Button variant="outline" onClick={() => { if (selectedBooking) updateStatus(selectedBooking.id, 'rejected'); setIsDetailsOpen(false); }}>Rechazar</Button>
-                                    <Button onClick={() => { if (selectedBooking) updateStatus(selectedBooking.id, 'confirmed'); setIsDetailsOpen(false); }}>Aprobar</Button>
+                </div>
+            </div>
+
+
+            {/* ── Detail dialog ─────────────────────────── */}
+            <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+                <DialogContent
+                    className="max-w-md p-0 overflow-hidden rounded-3xl border-0 shadow-2xl"
+                    style={{ background: "#111418" }}
+                >
+                    <div
+                        className="p-7 pb-6 border-b"
+                        style={{
+                            background: "rgba(0,82,212,0.12)",
+                            borderColor: "rgba(0,82,212,0.25)",
+                        }}
+                    >
+                        <DialogHeader className="space-y-1">
+                            <DialogTitle className="ls-title text-2xl text-center">Detalle de Reserva</DialogTitle>
+                            <DialogDescription className="text-center text-sm font-inter" style={{ color: "rgba(255,255,255,0.40)" }}>
+                                ID: {selectedBooking?.id}
+                            </DialogDescription>
+                        </DialogHeader>
+                    </div>
+
+                    {selectedBooking && (
+                        <div className="p-7 space-y-6">
+                            {/* Service */}
+                            <div className="space-y-3">
+                                <Row label="Servicio" value={selectedBooking.serviceName} />
+                                {selectedBooking.eventName && (
+                                    <Row label="Evento" value={selectedBooking.eventName} color="#00C9FF" />
+                                )}
+                                <div className="flex justify-between items-center pb-1">
+                                    <span className="text-[11px] font-outfit font-bold uppercase tracking-wider text-white/35">Estado</span>
+                                    <StatusPill status={selectedBooking.status} date={selectedBooking.date} />
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-[11px] font-outfit font-bold uppercase tracking-wider text-white/35">Total a pagar</span>
+                                    <span className="ls-price text-2xl">${selectedBooking.amount}</span>
                                 </div>
                             </div>
-                        )}
-                        {isRescheduling && (
-                            <div className="w-full space-y-4">
-                                <Calendar mode="single" selected={proposedDate} onSelect={setProposedDate} />
-                                <div className="flex justify-end gap-2">
-                                    <Button variant="ghost" onClick={() => setIsRescheduling(false)}>Cancelar</Button>
-                                    <Button onClick={() => { if (selectedBooking) updateStatus(selectedBooking.id, 'rescheduled', proposedDate); setIsDetailsOpen(false); }}>Enviar</Button>
-                                </div>
+
+                            <div className="h-px w-full" style={{ background: "rgba(255,255,255,0.08)" }} />
+
+                            {/* Client & Logistics */}
+                            <div className="space-y-3">
+                                <IconRow icon={<User className="w-4 h-4" />} label="Cliente" value={selectedBooking.clientName} />
+                                <IconRow icon={<FileText className="w-4 h-4" />} label="Teléfono" value={selectedBooking.clientPhone || 'No especificado'} />
+                                <IconRow icon={<Clock className="w-4 h-4" />} label="Fecha" value={`${selectedBooking.date}, ${selectedBooking.time}`} />
+                                <IconRow icon={<User className="w-4 h-4" />} label="Invitados" value={`${selectedBooking.guests} personas`} />
+                                <IconRow icon={<Landmark className="w-4 h-4" />} label="Ubicación" value={selectedBooking.location || 'No especificada'} />
                             </div>
-                        )}
-                    </DialogFooter>
+
+                            {selectedBooking.specifications && (
+                                <>
+                                    <div className="h-px w-full" style={{ background: "rgba(255,255,255,0.08)" }} />
+                                    <div>
+                                        <p className="text-[11px] font-outfit font-bold uppercase tracking-wider text-white/35 mb-2">Especificaciones</p>
+                                        <div className="rounded-xl p-3 text-sm font-inter text-white/70" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                                            {selectedBooking.specifications}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+
+                            {/* Actions */}
+                            <DialogFooter className="flex-col sm:flex-row gap-2 pt-2 border-t border-white/10 mt-6">
+                                {selectedBooking?.status === 'cancellation_requested' && (
+                                    <>
+                                        <button className="ls-btn-ghost flex-1 justify-center" onClick={() => { handleRejectCancellation(selectedBooking.id); setIsDetailsOpen(false) }}>
+                                            Rechazar
+                                        </button>
+                                        <button className="ls-btn-danger flex-1 justify-center" onClick={() => { handleApproveCancellation(selectedBooking.id); setIsDetailsOpen(false) }}>
+                                            Aprobar Cancelación
+                                        </button>
+                                    </>
+                                )}
+
+                                {selectedBooking?.status === 'pending' && !isRescheduling && (
+                                    <>
+                                        <button className="ls-btn-ghost flex-1 justify-center" onClick={() => setIsRescheduling(true)}>
+                                            Reprogramar
+                                        </button>
+                                        <button className="ls-btn-danger flex-1 justify-center" onClick={() => { updateStatus(selectedBooking.id, 'rejected'); setIsDetailsOpen(false) }}>
+                                            Rechazar
+                                        </button>
+                                        <button className="ls-btn-cta flex-1 justify-center" onClick={() => { updateStatus(selectedBooking.id, 'confirmed'); setIsDetailsOpen(false) }}>
+                                            Aprobar
+                                        </button>
+                                    </>
+                                )}
+
+                                {isRescheduling && (
+                                    <div className="w-full flex justify-center flex-col gap-4">
+                                        <div className="p-4 bg-black/20 rounded-2xl mx-auto border border-white/5">
+                                            <Calendar
+                                                mode="single"
+                                                locale={es}
+                                                selected={proposedDate}
+                                                onSelect={setProposedDate}
+                                                className="bg-transparent text-white w-full max-w-[420px] mx-auto p-2 sm:p-4 auto [&_[data-selected-single=true]]:!bg-ls-blue [&_[data-selected-single=true]]:!text-white [&_[data-selected-single=true]]:font-bold [&_[data-selected-single=true]]:shadow-md [&_[data-selected-single=true]]:shadow-ls-blue/20 [&_button]:rounded-full [&_button:hover:not([data-selected-single=true])]:bg-white/10"
+                                                classNames={{
+                                                    caption_label: "text-lg font-outfit font-bold text-white capitalize",
+                                                    button_previous: "h-8 w-8 bg-transparent p-0 text-white/50 hover:text-white transition-colors absolute left-2",
+                                                    button_next: "h-8 w-8 bg-transparent p-0 text-white/50 hover:text-white transition-colors absolute right-2",
+                                                    weekday: "text-white/40 font-outfit text-sm font-semibold capitalize flex-1 text-center font-normal",
+                                                    today: "border border-white/20 text-white font-bold rounded-full",
+                                                    outside: "text-white/20 opacity-50",
+                                                    disabled: "text-white/20 opacity-30 cursor-not-allowed",
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="flex justify-end gap-2 mt-2 w-full">
+                                            <button className="ls-btn-ghost flex-1 justify-center" onClick={() => setIsRescheduling(false)}>Volver</button>
+                                            <button className="ls-btn-cta flex-1 justify-center" onClick={() => { if (proposedDate) { updateStatus(selectedBooking.id, 'rescheduled', proposedDate); setIsDetailsOpen(false) } }}>
+                                                Enviar Reprogramación
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Cerrar default for non-pending */}
+                                {selectedBooking?.status !== 'pending' && selectedBooking?.status !== 'cancellation_requested' && (
+                                    <button
+                                        onClick={() => setIsDetailsOpen(false)}
+                                        className="ls-btn-cta w-full justify-center"
+                                    >
+                                        Cerrar
+                                    </button>
+                                )}
+                            </DialogFooter>
+                        </div>
+                    )}
                 </DialogContent>
             </Dialog>
+        </div>
+    )
+}
+
+function Row({ label, value, color }: { label: string; value: string, color?: string }) {
+    return (
+        <div className="flex justify-between items-center">
+            <span className="text-[11px] font-outfit font-bold uppercase tracking-wider text-white/35 flex-shrink-0">{label}</span>
+            <span className="font-inter font-semibold text-right max-w-[200px] leading-snug line-clamp-2" style={{ color: color || "rgba(255,255,255,0.85)" }}>{value}</span>
+        </div>
+    )
+}
+
+function IconRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+    return (
+        <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2 text-white/35 flex-shrink-0">
+                {icon}
+                <span className="text-[11px] font-outfit font-bold uppercase tracking-wider">{label}</span>
+            </div>
+            <span className="font-inter font-semibold text-white/70 text-right max-w-[170px] leading-snug truncate">{value}</span>
         </div>
     )
 }
