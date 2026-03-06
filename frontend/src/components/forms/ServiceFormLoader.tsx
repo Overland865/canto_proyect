@@ -1,10 +1,10 @@
 // ServiceFormLoader Component
 
 import React from 'react';
-import BanqueteroForm from './BanqueteroForm';
+import { BanqueteroForm } from './BanqueteroForm';
 import RentadorLocalForm from './RentadorLocalForm';
 
-const ServiceFormLoader = ({ category }) => {
+const ServiceFormLoader = ({ category }: { category: string }) => {
     switch (category) {
         case 'Banquetero':
             return <BanqueteroForm />;
