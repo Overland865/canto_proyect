@@ -1,22 +1,20 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import Link from "next/link"
-import { ChevronLeft, Upload, Loader2, X } from "lucide-react"
+import { ChevronLeft, Upload, Loader2, X, ImageIcon } from "lucide-react"
 import { useState, useRef, useEffect, use } from "react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { useProvider } from "@/context/provider-context"
 import { createClient } from "@/lib/supabase/client"
 import { useAuth } from "@/context/auth-context"
+import Link from "next/link"
 
 // Next.js 15+ Params type handling
 type Params = Promise<{ id: string }>
+
+const BACK_HREF = "/dashboard/provider"
 
 export default function EditServicePage(props: { params: Params }) {
     const params = use(props.params)
@@ -40,36 +38,28 @@ export default function EditServicePage(props: { params: Params }) {
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
-        const loadService = () => {
-            const services = getMyServices()
-            const serviceToEdit = services.find(s => s.id === params.id)
+        const services = getMyServices()
+        const serviceToEdit = services.find(s => s.id === params.id)
 
-            if (serviceToEdit) {
-                setTitle(serviceToEdit.title)
-                setCategory(serviceToEdit.category)
-                setType(serviceToEdit.type)
-                setPrice(serviceToEdit.price.toString())
-                setDescription(serviceToEdit.description)
-                setLocation(serviceToEdit.location)
-                if (serviceToEdit.image) {
-                    setImages(serviceToEdit.gallery && serviceToEdit.gallery.length > 0 ? serviceToEdit.gallery : [serviceToEdit.image])
-                }
-                setIsFetching(false)
-            } else if (services.length > 0) {
-                // Services loaded but id not found
-                toast.error("Servicio no encontrado")
-                router.push("/dashboard/provider/services")
+        if (serviceToEdit) {
+            setTitle(serviceToEdit.title)
+            setCategory(serviceToEdit.category)
+            setType(serviceToEdit.type)
+            setPrice(serviceToEdit.price.toString())
+            setDescription(serviceToEdit.description)
+            setLocation(serviceToEdit.location)
+            if (serviceToEdit.image) {
+                setImages(serviceToEdit.gallery && serviceToEdit.gallery.length > 0 ? serviceToEdit.gallery : [serviceToEdit.image])
             }
-            // If services.length === 0, contexts might be loading, wait a bit or rely on context isLoading 
-            // For now simple check:
-            if (services.length > 0 && !serviceToEdit) {
-                setIsFetching(false)
-            }
+            setIsFetching(false)
+        } else if (services.length > 0) {
+            toast.error("Servicio no encontrado")
+            router.push(BACK_HREF)
         }
-
-        loadService()
-        // Retry logic specifically if context is slow could be better handled by context.isLoading
-    }, [params.id, getMyServices])
+        if (services.length > 0 && !serviceToEdit) {
+            setIsFetching(false)
+        }
+    }, [params.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -88,13 +78,11 @@ export default function EditServicePage(props: { params: Params }) {
                 const fileExt = file.name.split('.').pop()
                 const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
 
-                const { data, error } = await supabase.storage
+                const { error } = await supabase.storage
                     .from('service-images')
                     .upload(fileName, file)
 
-                if (error) {
-                    throw error
-                }
+                if (error) throw error
 
                 const { data: { publicUrl } } = supabase.storage
                     .from('service-images')
@@ -108,9 +96,7 @@ export default function EditServicePage(props: { params: Params }) {
 
         } catch (error: any) {
             console.error(error)
-            toast.error("Error al subir imagen(es)", {
-                description: error.message
-            })
+            toast.error("Error al subir imagen(es)", { description: error.message })
         } finally {
             setIsUploading(false)
             if (fileInputRef.current) fileInputRef.current.value = ''
@@ -133,7 +119,7 @@ export default function EditServicePage(props: { params: Params }) {
                 price: parseFloat(price),
                 description,
                 location,
-                image: images[0] || "", // Main image
+                image: images[0] || "",
                 gallery: images,
             }
 
@@ -143,7 +129,7 @@ export default function EditServicePage(props: { params: Params }) {
                 description: "Los cambios se han guardado correctamente.",
             })
 
-            router.push("/dashboard/provider/services")
+            router.push(BACK_HREF)
         } catch (error: any) {
             console.error(error)
             toast.error("Error al actualizar", {
@@ -155,36 +141,52 @@ export default function EditServicePage(props: { params: Params }) {
     }
 
     if (isFetching && getMyServices().length === 0) {
-        return <div className="p-10 text-center">Cargando datos del servicio...</div>
+        return (
+            <div className="flex items-center justify-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin" style={{ color: "#0052D4" }} />
+            </div>
+        )
     }
 
     return (
-        <div className="max-w-3xl mx-auto space-y-6">
-            <div className="flex items-center gap-4">
-                <Link href="/dashboard/provider/services">
-                    <Button variant="ghost" size="icon">
-                        <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                </Link>
-                <div>
-                    <h2 className="text-2xl font-bold tracking-tight">Editar Servicio</h2>
-                    <p className="text-muted-foreground">Modifica los detalles de tu publicación.</p>
+        <div
+            className="min-h-screen py-8 px-4"
+            style={{ background: "#0F1216" }}
+        >
+            <div className="max-w-3xl mx-auto space-y-6">
+                {/* Header */}
+                <div className="flex items-center gap-4">
+                    <Link href={BACK_HREF}>
+                        <button
+                            className="h-9 w-9 rounded-xl flex items-center justify-center transition-all"
+                            style={{
+                                background: "rgba(255,255,255,0.06)",
+                                border: "1px solid rgba(255,255,255,0.10)",
+                            }}
+                        >
+                            <ChevronLeft className="h-4 w-4 text-white" />
+                        </button>
+                    </Link>
+                    <div>
+                        <h2 className="ls-title text-2xl">Editar Servicio</h2>
+                        <p className="text-white/50 font-inter text-sm">Modifica los detalles de tu publicación.</p>
+                    </div>
                 </div>
-            </div>
 
-            <form onSubmit={handleSubmit}>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Detalles del Servicio</CardTitle>
-                        <CardDescription>
-                            Actualiza la información de tu servicio.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="space-y-2">
-                            <Label htmlFor="title">Título del Servicio</Label>
-                            <Input
-                                id="title"
+                <form onSubmit={handleSubmit} className="space-y-5">
+                    {/* Main card */}
+                    <div className="ls-glass p-6 space-y-6">
+                        <h3 className="ls-title text-sm pb-3 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                            Detalles del Servicio
+                        </h3>
+
+                        {/* Title */}
+                        <div className="space-y-1.5">
+                            <label className="text-white/60 font-inter text-xs uppercase tracking-wider">
+                                Título del Servicio
+                            </label>
+                            <input
+                                className="ls-input"
                                 placeholder="Ej. Paquete de Boda Premium"
                                 required
                                 value={title}
@@ -192,44 +194,90 @@ export default function EditServicePage(props: { params: Params }) {
                             />
                         </div>
 
+                        {/* Category + Type */}
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="category">Categoría</Label>
+                            <div className="space-y-1.5">
+                                <label className="text-white/60 font-inter text-xs uppercase tracking-wider">
+                                    Categoría
+                                </label>
                                 <Select required onValueChange={setCategory} value={category}>
-                                    <SelectTrigger>
+                                    <SelectTrigger
+                                        className="ls-input h-auto cursor-pointer"
+                                        style={{
+                                            background: "rgba(255,255,255,0.05)",
+                                            border: "1px solid rgba(255,255,255,0.10)",
+                                            color: "rgba(255,255,255,0.85)",
+                                            backdropFilter: "blur(12px)",
+                                        }}
+                                    >
                                         <SelectValue placeholder="Seleccionar..." />
                                     </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Locales">Locales</SelectItem>
-                                        <SelectItem value="Banquetes">Banquetes</SelectItem>
-                                        <SelectItem value="Música">Música</SelectItem>
-                                        <SelectItem value="Foto y Video">Foto y Video</SelectItem>
-                                        <SelectItem value="Decoración">Decoración</SelectItem>
+                                    <SelectContent
+                                        style={{
+                                            background: "#1A1F25",
+                                            border: "1px solid rgba(255,255,255,0.12)",
+                                        }}
+                                    >
+                                        {["Locales", "Banquetes", "Música", "Foto y Video", "Decoración"].map(cat => (
+                                            <SelectItem
+                                                key={cat}
+                                                value={cat}
+                                                className="text-white/80 focus:bg-white/10 focus:text-white"
+                                            >
+                                                {cat}
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="type">Tipo de Publicación</Label>
+                            <div className="space-y-1.5">
+                                <label className="text-white/60 font-inter text-xs uppercase tracking-wider">
+                                    Tipo de Publicación
+                                </label>
                                 <Select value={type} onValueChange={(v: "service" | "package") => setType(v)}>
-                                    <SelectTrigger>
+                                    <SelectTrigger
+                                        className="ls-input h-auto cursor-pointer"
+                                        style={{
+                                            background: "rgba(255,255,255,0.05)",
+                                            border: "1px solid rgba(255,255,255,0.10)",
+                                            color: "rgba(255,255,255,0.85)",
+                                            backdropFilter: "blur(12px)",
+                                        }}
+                                    >
                                         <SelectValue />
                                     </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="service">Servicio Individual</SelectItem>
-                                        <SelectItem value="package">Paquete Completo</SelectItem>
+                                    <SelectContent
+                                        style={{
+                                            background: "#1A1F25",
+                                            border: "1px solid rgba(255,255,255,0.12)",
+                                        }}
+                                    >
+                                        <SelectItem value="service" className="text-white/80 focus:bg-white/10 focus:text-white">
+                                            Servicio Individual
+                                        </SelectItem>
+                                        <SelectItem value="package" className="text-white/80 focus:bg-white/10 focus:text-white">
+                                            Paquete Completo
+                                        </SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="price">Precio Base ($)</Label>
+                        {/* Price */}
+                        <div className="space-y-1.5">
+                            <label className="text-white/60 font-inter text-xs uppercase tracking-wider">
+                                Precio Base (MXN)
+                            </label>
                             <div className="relative">
-                                <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
-                                <Input
-                                    id="price"
+                                <span
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 font-outfit font-bold"
+                                    style={{ color: "#98FF00" }}
+                                >
+                                    $
+                                </span>
+                                <input
                                     type="number"
-                                    className="pl-7"
+                                    className="ls-input pl-8"
                                     placeholder="0.00"
                                     required
                                     value={price}
@@ -238,32 +286,46 @@ export default function EditServicePage(props: { params: Params }) {
                             </div>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="description">Descripción</Label>
-                            <Textarea
-                                id="description"
+                        {/* Description */}
+                        <div className="space-y-1.5">
+                            <label className="text-white/60 font-inter text-xs uppercase tracking-wider">
+                                Descripción
+                            </label>
+                            <textarea
+                                className="ls-input min-h-[140px] resize-none"
                                 placeholder="Describe detalladamente qué incluye tu servicio..."
-                                className="min-h-[150px]"
                                 required
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
                             />
                         </div>
 
-                        <div className="space-y-2">
-                            <Label>Imágenes</Label>
+                        {/* Images */}
+                        <div className="space-y-3">
+                            <label className="text-white/60 font-inter text-xs uppercase tracking-wider">
+                                Imágenes
+                            </label>
                             <div
-                                className={`border-2 border-dashed rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-colors ${isUploading ? "bg-slate-100 cursor-wait" : "hover:bg-slate-50"
-                                    }`}
+                                className={`rounded-2xl border-2 border-dashed p-10 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 ${isUploading ? "cursor-wait opacity-60" : "hover:border-white/25 hover:bg-white/[0.02]"}`}
+                                style={{ borderColor: "rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.02)" }}
                                 onClick={() => !isUploading && fileInputRef.current?.click()}
                             >
                                 {isUploading ? (
-                                    <Loader2 className="h-8 w-8 text-primary animate-spin mb-4" />
+                                    <Loader2 className="h-9 w-9 animate-spin mb-3" style={{ color: "#0052D4" }} />
                                 ) : (
-                                    <Upload className="h-8 w-8 text-muted-foreground mb-4" />
+                                    <span
+                                        className="h-14 w-14 rounded-2xl flex items-center justify-center mb-3"
+                                        style={{ background: "rgba(0,82,212,0.12)" }}
+                                    >
+                                        <Upload className="h-7 w-7" style={{ color: "#0052D4" }} />
+                                    </span>
                                 )}
-                                <p className="font-semibold">{isUploading ? "Subiendo..." : "Click para subir imágenes nuevas"}</p>
-                                <p className="text-sm text-muted-foreground">{isUploading ? "Por favor espere" : "o arrastra y suelta aquí"}</p>
+                                <p className="text-white font-outfit font-semibold text-sm">
+                                    {isUploading ? "Subiendo imágenes..." : "Click para subir imágenes"}
+                                </p>
+                                <p className="text-white/35 font-inter text-xs mt-1">
+                                    {isUploading ? "Por favor espere" : "JPG, PNG, WebP — arrastra y suelta aquí"}
+                                </p>
                                 <input
                                     type="file"
                                     multiple
@@ -274,46 +336,76 @@ export default function EditServicePage(props: { params: Params }) {
                                     disabled={isUploading}
                                 />
                             </div>
+
                             {images.length > 0 && (
-                                <div className="grid grid-cols-4 gap-4 mt-4">
+                                <div className="grid grid-cols-4 gap-3">
                                     {images.map((img, idx) => (
-                                        <div key={idx} className="relative aspect-square rounded-md overflow-hidden bg-muted group">
+                                        <div
+                                            key={idx}
+                                            className="relative aspect-square rounded-xl overflow-hidden group"
+                                            style={{ border: "1px solid rgba(255,255,255,0.10)" }}
+                                        >
                                             <img src={img} alt="preview" className="w-full h-full object-cover" />
+                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity" />
                                             <button
                                                 type="button"
-                                                onClick={(e) => { e.stopPropagation(); removeImage(idx); }}
-                                                className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                onClick={(e) => { e.stopPropagation(); removeImage(idx) }}
+                                                className="absolute top-2 right-2 h-6 w-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                                style={{ background: "rgba(239,68,68,0.85)" }}
                                             >
-                                                <X className="h-3 w-3" />
+                                                <X className="h-3 w-3 text-white" />
                                             </button>
+                                            {idx === 0 && (
+                                                <span
+                                                    className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-outfit font-bold"
+                                                    style={{
+                                                        background: "rgba(152,255,0,0.20)",
+                                                        border: "1px solid rgba(152,255,0,0.40)",
+                                                        color: "#98FF00",
+                                                    }}
+                                                >
+                                                    Principal
+                                                </span>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
                             )}
                         </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="location">Ubicación / Cobertura</Label>
-                            <Input
-                                id="location"
+                        {/* Location */}
+                        <div className="space-y-1.5">
+                            <label className="text-white/60 font-inter text-xs uppercase tracking-wider">
+                                Ubicación / Cobertura
+                            </label>
+                            <input
+                                className="ls-input"
                                 placeholder="Ej. CDMX y Área Metropolitana"
                                 value={location}
                                 onChange={(e) => setLocation(e.target.value)}
                             />
                         </div>
+                    </div>
 
-                    </CardContent>
-                    <CardFooter className="flex justify-end gap-2 border-t bg-slate-50/50 p-6">
-                        <Link href="/dashboard/provider/services">
-                            <Button variant="ghost" type="button">Cancelar</Button>
+                    {/* Footer actions */}
+                    <div className="flex justify-end gap-3">
+                        <Link href={BACK_HREF}>
+                            <button type="button" className="ls-btn-ghost">
+                                Cancelar
+                            </button>
                         </Link>
-                        <Button type="submit" disabled={isLoading || isUploading}>
-                            {(isLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        <button
+                            type="submit"
+                            className="ls-btn-cta"
+                            disabled={isLoading || isUploading}
+                            style={{ opacity: (isLoading || isUploading) ? 0.6 : 1 }}
+                        >
+                            {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
                             Guardar Cambios
-                        </Button>
-                    </CardFooter>
-                </Card>
-            </form>
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     )
 }

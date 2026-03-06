@@ -4,6 +4,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
+import { updateProfileDB } from "@/lib/supabase-service"
+import { ProfileUpdate } from "@/types"
 
 type User = {
     id: string
@@ -109,6 +111,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error: any) {
             console.error("Error fetching profile:", error)
             console.error("Error details:", JSON.stringify(error, null, 2))
+
+            // Critical fix: Show toast so it doesn't fail silently
+            toast.error("Error cargando sesión o perfil. Revisa la base de datos.")
+
             setAuthError("Profile Fetch Error: " + (error.message || JSON.stringify(error)))
             setUser(null)
         }
@@ -379,16 +385,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const updateProfile = async (userData: Partial<User>) => {
         if (!user) return
         try {
-            const { updateProfileDB } = await import("@/lib/supabase-service")
-            await updateProfileDB(supabase, user.id, userData)
+            const result = await updateProfileDB(supabase, user.id, userData as ProfileUpdate)
+
+            if (!result.success) {
+                console.error("DEBUG - updateProfileDB failed:", result.error)
+                toast.error("Error al actualizar perfil en DB")
+                return // Do not throw, to avoid the Next.js Red Screen loop
+            }
 
             // UI state update
             setUser(prev => prev ? { ...prev, ...userData } : null)
             toast.success("Perfil actualizado")
         } catch (error: any) {
-            console.error("Error updating profile:", error)
-            toast.error("Error al actualizar perfil")
-            throw error
+            console.error("Error updating profile state:", error)
+            toast.error("Ocurrió un error inesperado al actualizar")
         }
     }
 

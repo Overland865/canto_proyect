@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -126,5 +128,113 @@
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     @apply bg-slate-400 dark:bg-slate-600;
+  }
+}
+
+/* ─────────────────────────────────────────────────────
+   LocalSpace Design System — Provider Dashboard
+   ───────────────────────────────────────────────────── */
+@layer components {
+
+  /* Glass card — modals, stat cards, containers */
+  .ls-glass {
+    @apply relative rounded-2xl border overflow-hidden;
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.10);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  /* Surface card — list rows, table rows */
+  .ls-surface {
+    @apply rounded-xl border;
+    background: #1A1F25;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  /* CTA button — blue → cyan gradient */
+  .ls-btn-cta {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 font-outfit font-bold text-white text-sm cursor-pointer transition-transform duration-150 select-none;
+    background: linear-gradient(90deg, #0052D4, #00C9FF);
+    box-shadow: 0 8px 20px rgba(0, 82, 212, 0.45);
+  }
+
+  .ls-btn-cta:hover {
+    transform: scale(1.02);
+  }
+
+  .ls-btn-cta:active {
+    transform: scale(0.97);
+  }
+
+  /* Ghost button */
+  .ls-btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-outfit font-semibold text-white/80 text-sm cursor-pointer transition-all duration-150 border border-white/10 select-none;
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .ls-btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.09);
+  }
+
+  /* Danger button */
+  .ls-btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-outfit font-semibold text-sm cursor-pointer transition-all duration-150 border select-none;
+    background: rgba(239, 68, 68, 0.10);
+    border-color: rgba(239, 68, 68, 0.30);
+    color: #f87171;
+  }
+
+  .ls-btn-danger:hover {
+    background: rgba(239, 68, 68, 0.20);
+  }
+
+  /* Input */
+  .ls-input {
+    @apply w-full rounded-xl px-4 py-3 text-sm text-white outline-none transition-all duration-300 font-inter;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .ls-input::placeholder {
+    color: rgba(255, 255, 255, 0.35);
+  }
+
+  .ls-input:focus {
+    border-color: #98FF00;
+    box-shadow: 0 0 0 2px rgba(152, 255, 0, 0.15);
+  }
+
+  /* Lemon fizz text — prices, highlights */
+  .ls-price {
+    @apply font-outfit font-bold;
+    color: #98FF00;
+  }
+
+  /* Section title */
+  .ls-title {
+    @apply font-outfit font-bold text-white;
+  }
+
+  /* Subtle shimmer animation on blobs */
+  @keyframes ls-blob-float {
+
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+
+    50% {
+      transform: translateY(-30px);
+    }
+  }
+
+  .ls-blob {
+    animation: ls-blob-float 8s ease-in-out infinite;
+  }
+
+  .ls-blob-delay {
+    animation: ls-blob-float 10s ease-in-out infinite reverse;
   }
 }

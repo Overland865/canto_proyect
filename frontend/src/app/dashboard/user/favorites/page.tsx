@@ -8,7 +8,7 @@ import Link from "next/link"
 import FavoriteButton from "@/components/shared/favorite-button"
 
 export default function FavoritesPage() {
-    const { favorites, isLoading, loadFavorites } = useFavorites()
+    const { favorites, favoriteIds, isLoading, loadFavorites } = useFavorites()
 
     return (
         <div className="space-y-6">
@@ -19,9 +19,9 @@ export default function FavoritesPage() {
                 </Button>
             </div>
 
-            {isLoading && favorites.length === 0 ? (
+            {isLoading ? (
                 <div className="py-12 text-center text-muted-foreground">
-                    <p>Cargando favoritos...</p>
+                    <p>Cargando favoritos (IDs: {Array.from(favoriteIds).join(", ")})...</p>
                 </div>
             ) : favorites.length === 0 ? (
                 <Card>
@@ -30,7 +30,7 @@ export default function FavoritesPage() {
                             <Heart className="h-12 w-12 mx-auto opacity-30" />
                             <h3 className="text-lg font-medium">No tienes favoritos aún</h3>
                             <p className="text-sm">
-                                Explora el marketplace y guarda los servicios que más te gusten.
+                                Explora el marketplace y guarda los servicios que más te gusten. (IDs memorizados: {Array.from(favoriteIds).join(", ")})
                             </p>
                             <Link href="/marketplace">
                                 <Button variant="outline" className="mt-2">

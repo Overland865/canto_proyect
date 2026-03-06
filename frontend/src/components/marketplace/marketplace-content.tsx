@@ -96,7 +96,7 @@ export function MarketplaceContent({ initialCategory, initialSearch }: { initial
     }
 
     return (
-        <div className="min-h-screen flex flex-col">
+        <div className="min-h-screen flex flex-col bg-ls-bg text-white font-inter">
             <FilterBar
                 categories={CATEGORIES}
                 selectedCategories={selectedCategories}
@@ -111,13 +111,13 @@ export function MarketplaceContent({ initialCategory, initialSearch }: { initial
                 onSortChange={setSortOption}
             />
 
-            <div className="flex-1 bg-slate-50/50">
+            <div className="flex-1">
                 <div className="container max-w-[1920px] py-8">
                     <div className="mb-6">
-                        <h2 className="text-2xl font-bold">
+                        <h2 className="text-3xl font-outfit font-bold text-white">
                             {sortedServices.length} {sortedServices.length === 1 ? "resultado encontrado" : "resultados encontrados"}
                         </h2>
-                        <p className="text-muted-foreground">Encuentra los mejores proveedores para tu evento.</p>
+                        <p className="text-white/70">Encuentra los mejores proveedores para tu evento.</p>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -132,8 +132,8 @@ export function MarketplaceContent({ initialCategory, initialSearch }: { initial
                                     key={service.id}
                                     className="group block h-full"
                                 >
-                                    <Card className="h-full overflow-hidden hover:shadow-xl transition-all duration-300 border-muted flex flex-col group-hover:-translate-y-1">
-                                        <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                                    <Card className="h-full overflow-hidden hover:shadow-2xl hover:shadow-black/50 transition-all duration-300 ls-glass bg-black/40 border-white/5 flex flex-col group-hover:-translate-y-1 group-hover:border-ls-cyan/30">
+                                        <div className="relative aspect-[4/3] overflow-hidden bg-black/50">
                                             <Image
                                                 src={service.image || "/placeholder-service.jpg"}
                                                 alt={service.title}
@@ -145,31 +145,31 @@ export function MarketplaceContent({ initialCategory, initialSearch }: { initial
                                                 <FavoriteButton serviceId={String(service.id)} />
                                             </div>
                                             {service.verified && (
-                                                <Badge className="absolute top-2 right-2 bg-white/90 text-primary hover:bg-white shadow-sm backdrop-blur-sm">
+                                                <Badge className="absolute top-2 right-2 bg-ls-blue/90 text-white hover:bg-ls-blue shadow-sm backdrop-blur-sm border-none">
                                                     <ShieldCheck className="w-3 h-3 mr-1" /> Verificado
                                                 </Badge>
                                             )}
                                         </div>
                                         <CardHeader className="p-4 pb-2 relative">
                                             <div className="absolute -top-6 right-4 z-20">
-                                                <Avatar className="h-10 w-10 border-2 border-white shadow-md">
+                                                <Avatar className="h-10 w-10 border-2 border-[#1A1F25] shadow-md">
                                                     <AvatarImage src={service.providerAvatar} />
-                                                    <AvatarFallback className="bg-primary/5 text-[10px]">
+                                                    <AvatarFallback className="bg-[#1A1F25] text-white/70 text-[10px]">
                                                         {service.businessName?.[0] || "?"}
                                                     </AvatarFallback>
                                                 </Avatar>
                                             </div>
-                                            <div className="flex justify-between items-start gap-2">
+                                            <div className="flex justify-between items-start gap-2 pt-2">
                                                 <div>
-                                                    <CardTitle className="text-base font-bold line-clamp-1 group-hover:text-primary transition-colors">
+                                                    <CardTitle className="text-lg font-outfit font-bold line-clamp-1 group-hover:text-ls-cyan transition-colors text-white">
                                                         {service.title}
                                                     </CardTitle>
-                                                    <div className="flex items-center gap-2 mt-1.5">
-                                                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 font-medium">
+                                                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                                                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 font-medium bg-white/10 text-white/90 hover:bg-white/20 border-white/5">
                                                             {service.category}
                                                         </Badge>
-                                                        <span className="text-xs text-muted-foreground flex items-center line-clamp-1">
-                                                            <MapPin className="w-3 h-3 mr-1 shrink-0" /> {service.location}
+                                                        <span className="text-xs text-white/60 flex items-center line-clamp-1">
+                                                            <MapPin className="w-3 h-3 mr-1 shrink-0 text-ls-cyan" /> {service.location}
                                                         </span>
                                                     </div>
 
@@ -179,30 +179,30 @@ export function MarketplaceContent({ initialCategory, initialSearch }: { initial
                                                                 const capacity = service.capacity || 0;
                                                                 const guests = eventPlan.guests || 0;
                                                                 if (capacity === 0) {
-                                                                    return <Badge variant="outline" className="text-[10px] text-muted-foreground bg-slate-50">Capacidad no especificada</Badge>;
+                                                                    return <Badge variant="outline" className="text-[10px] text-white/60 border-white/10">Capacidad no especificada</Badge>;
                                                                 }
                                                                 if (capacity >= guests) {
-                                                                    return <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 text-[10px] border-emerald-200">Amplio ({capacity} pers.)</Badge>;
+                                                                    return <Badge className="bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 text-[10px] border-emerald-500/30">Amplio ({capacity} pers.)</Badge>;
                                                                 } else {
-                                                                    return <Badge variant="destructive" className="text-[10px] opacity-90">Espacio insuficiente ({capacity} pers.)</Badge>;
+                                                                    return <Badge variant="destructive" className="text-[10px] bg-red-500/20 text-red-300 border-red-500/30">Espacio insuficiente ({capacity} pers.)</Badge>;
                                                                 }
                                                             })()}
                                                         </div>
                                                     )}
                                                 </div>
-                                                <div className="flex items-center bg-primary/10 px-1.5 py-0.5 rounded text-xs font-bold text-primary whitespace-nowrap">
-                                                    <Star className="w-3 h-3 mr-1 fill-primary" /> {service.rating?.toFixed(1) || "0.0"}
+                                                <div className="flex items-center bg-ls-golden/10 px-1.5 py-0.5 rounded text-xs font-bold text-ls-golden whitespace-nowrap border border-ls-golden/20 shadow-[0_0_10px_rgba(255,215,0,0.1)]">
+                                                    <Star className="w-3 h-3 mr-1 fill-ls-golden" /> {service.rating?.toFixed(1) || "0.0"}
                                                 </div>
                                             </div>
                                         </CardHeader>
-                                        <CardFooter className="p-4 pt-0 mt-auto flex items-center justify-between border-t border-dashed bg-slate-50/50 mt-2">
-                                            <div className="font-bold text-lg text-primary">
+                                        <CardFooter className="p-4 pt-4 mt-auto flex items-center justify-between border-t border-white/5 bg-black/20">
+                                            <div className="font-bold text-2xl font-outfit text-ls-lemon">
                                                 ${service.price.toLocaleString()}
-                                                <span className="text-xs font-normal text-muted-foreground ml-1">
+                                                <span className="text-xs font-inter font-normal text-white/50 ml-1">
                                                     {service.unit ? `/${service.unit}` : ""}
                                                 </span>
                                             </div>
-                                            <Button size="sm" onClick={(e) => handleAddToCart(e, service)} className="rounded-full shadow-sm hover:shadow-md transition-all">
+                                            <Button size="sm" onClick={(e) => handleAddToCart(e, service)} className="ls-btn-cta rounded-full shadow-lg">
                                                 <ShoppingCart className="w-4 h-4 mr-2" />
                                                 Agregar
                                             </Button>
@@ -211,13 +211,13 @@ export function MarketplaceContent({ initialCategory, initialSearch }: { initial
                                 </Link>
                             ))
                         ) : (
-                            <div className="col-span-full flex flex-col items-center justify-center py-20 text-center bg-white rounded-xl border border-dashed">
-                                <div className="bg-muted/50 p-6 rounded-full mb-4">
-                                    <MapPin className="w-10 h-10 text-muted-foreground" />
+                            <div className="col-span-full flex flex-col items-center justify-center py-24 text-center rounded-xl ls-glass bg-black/40 border-white/10">
+                                <div className="bg-white/5 p-6 rounded-full mb-6 border border-white/10">
+                                    <MapPin className="w-12 h-12 text-white/40" />
                                 </div>
-                                <h3 className="text-lg font-semibold">No encontramos resultados</h3>
-                                <p className="text-muted-foreground max-w-xs mx-auto mt-2">Prueba ajustando los filtros o buscando en otra ubicación.</p>
-                                <Button variant="outline" className="mt-6" onClick={() => { setSelectedCategories([]); setPriceRange([50000]); setSearchValue("") }}>
+                                <h3 className="text-2xl font-outfit font-bold text-white">No encontramos resultados</h3>
+                                <p className="text-white/60 max-w-sm mx-auto mt-3 font-inter">Prueba ajustando los filtros de precio, bajando la calificación requerida, o buscando otra palabra clave.</p>
+                                <Button variant="outline" className="mt-8 border-white/20 text-white bg-white/5 hover:bg-white/10 hover:text-white" onClick={() => { setSelectedCategories([]); setPriceRange([50000]); setSearchValue("") }}>
                                     Limpiar todos los filtros
                                 </Button>
                             </div>
