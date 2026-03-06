@@ -42,7 +42,7 @@ export async function DELETE(request: NextRequest) {
         const serviceIds = services?.map(s => s.id) || []
         console.log('Found services to delete:', serviceIds)
 
-        // Step 2: Delete bookings related to these services
+        // Step 2: Delete bookings related to these services (column: service_id)
         if (serviceIds.length > 0) {
             const { error: bookingsError } = await supabaseAdmin
                 .from('bookings')
@@ -50,10 +50,21 @@ export async function DELETE(request: NextRequest) {
                 .in('service_id', serviceIds)
 
             if (bookingsError) {
-                console.error('Error deleting bookings:', bookingsError)
-                throw bookingsError
+                console.error('Error deleting bookings by service_id:', bookingsError)
+                // Don't throw — continue cleanup
             }
             console.log('Deleted bookings for services')
+        }
+
+        // Also delete bookings where provider_id matches
+        const { error: providerBookingsError } = await supabaseAdmin
+            .from('bookings')
+            .delete()
+            .eq('provider_id', providerId)
+
+        if (providerBookingsError) {
+            console.error('Error deleting provider bookings:', providerBookingsError)
+            // Don't throw
         }
 
         // Step 3: Delete notifications related to this provider

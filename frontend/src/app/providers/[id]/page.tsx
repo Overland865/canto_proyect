@@ -56,13 +56,13 @@ async function getProviderData(id: string) {
         images,
         categories: detail?.categories || ["Servicios"],
         contact: {
-            phone: profile.phone || detail?.contact_phone || "No especificado",
-            email: profile.email || detail?.contact_email || "No especificado",
-            website: profile.website || detail?.contact_website || "No especificado",
+            phone: profile.phone || detail?.contact_phone || null,
+            email: profile.email || detail?.contact_email || null,
+            website: profile.website || detail?.contact_website || null,
         },
         social: {
-            instagram: profile.social_media?.instagram || detail?.social_instagram || "@usuario",
-            facebook: profile.social_media?.facebook || detail?.social_facebook || "/pagina",
+            instagram: profile.social_media?.instagram || detail?.social_instagram || null,
+            facebook: profile.social_media?.facebook || detail?.social_facebook || null,
         },
         services: services || [],
     }
@@ -231,50 +231,74 @@ export default async function ProviderDetailsPage({ params }: { params: Promise<
 
                 {/* Sidebar — 1/3 width */}
                 <div className="space-y-6">
-                    <Card className="ls-glass border-white/5 bg-black/40">
-                        <CardHeader className="border-b border-white/5 pb-4">
-                            <CardTitle className="font-outfit text-white text-xl">Contacto</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4 pt-6">
-                            <div className="flex items-center p-3 rounded-xl bg-white/5 border border-white/5">
-                                <Phone className="w-5 h-5 text-ls-cyan mr-3 shrink-0" />
-                                <div>
-                                    <p className="text-xs text-white/50 font-inter">Teléfono</p>
-                                    <p className="font-medium text-white/90">{provider.contact.phone}</p>
+                    {(provider.contact.phone || provider.contact.email || provider.contact.website) && (
+                        <Card className="ls-glass border-white/5 bg-black/40">
+                            <CardHeader className="border-b border-white/5 pb-4">
+                                <CardTitle className="font-outfit text-white text-xl">Contacto</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4 pt-6">
+                                <div className="grid grid-cols-1 gap-4">
+                                    {provider.contact.phone && (
+                                        <div className="flex items-center gap-3 p-3 border border-indigo-500/20 bg-[#1a103c]/30 rounded-lg group hover:border-indigo-400/30 transition-all cursor-pointer overflow-hidden" onClick={() => window.location.href = `tel:${provider.contact.phone}`}>
+                                            <div className="h-10 w-10 shrink-0 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 group-hover:bg-blue-500/30 group-hover:scale-110 transition-all">
+                                                <Phone className="h-5 w-5" />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-slate-400">Teléfono</p>
+                                                <p className="text-sm font-medium text-slate-200 group-hover:text-blue-300 transition-colors">{provider.contact.phone}</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {provider.contact.email && (
+                                        <div className="flex items-center gap-3 p-3 border border-indigo-500/20 bg-[#1a103c]/30 rounded-lg group hover:border-indigo-400/30 transition-all cursor-pointer overflow-hidden" onClick={() => window.location.href = `mailto:${provider.contact.email}`}>
+                                            <div className="h-10 w-10 shrink-0 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500/30 group-hover:scale-110 transition-all">
+                                                <Mail className="h-5 w-5" />
+                                            </div>
+                                            <div className="overflow-hidden">
+                                                <p className="text-xs text-slate-400">Email negocio</p>
+                                                <p className="text-sm font-medium text-slate-200 truncate group-hover:text-indigo-300 transition-colors">{provider.contact.email}</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {provider.contact.website && (
+                                        <div className="flex items-center gap-3 p-3 border border-indigo-500/20 bg-[#1a103c]/30 rounded-lg col-span-full group hover:border-indigo-400/30 transition-all overflow-hidden">
+                                            <div className="h-10 w-10 shrink-0 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400 group-hover:bg-cyan-500/30 group-hover:scale-110 transition-all">
+                                                <Globe className="h-5 w-5" />
+                                            </div>
+                                            <div className="overflow-hidden w-full">
+                                                <p className="text-xs text-slate-400">Sitio Web</p>
+                                                <a href={provider.contact.website.startsWith('http') ? provider.contact.website : `https://${provider.contact.website}`} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-cyan-400 hover:text-cyan-300 hover:underline truncate block">
+                                                    {provider.contact.website.replace(/^https?:\/\//, '')}
+                                                </a>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                            </div>
-                            <div className="flex items-center p-3 rounded-xl bg-white/5 border border-white/5">
-                                <Mail className="w-5 h-5 text-ls-cyan mr-3 shrink-0" />
-                                <div>
-                                    <p className="text-xs text-white/50 font-inter">Email</p>
-                                    <p className="font-medium text-white/90 truncate max-w-[200px]" title={provider.contact.email}>{provider.contact.email}</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center p-3 rounded-xl bg-white/5 border border-white/5">
-                                <Globe className="w-5 h-5 text-ls-cyan mr-3 shrink-0" />
-                                <div>
-                                    <p className="text-xs text-white/50 font-inter">Sitio Web</p>
-                                    <p className="font-medium text-white/90 truncate max-w-[200px]">{provider.contact.website}</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
+                    )}
 
-                    <Card className="ls-glass border-white/5 bg-black/40">
-                        <CardHeader className="border-b border-white/5 pb-4">
-                            <CardTitle className="font-outfit text-white text-xl">Redes Sociales</CardTitle>
-                        </CardHeader>
-                        <CardContent className="flex flex-col gap-3 pt-6">
-                            <Button variant="outline" className="w-full justify-start h-12 bg-white/5 border-white/10 text-white/80 hover:bg-white/10 hover:text-white transition-colors">
-                                <Instagram className="w-5 h-5 mr-3 text-pink-400" />
-                                {provider.social.instagram}
-                            </Button>
-                            <Button variant="outline" className="w-full justify-start h-12 bg-white/5 border-white/10 text-white/80 hover:bg-white/10 hover:text-white transition-colors">
-                                <Facebook className="w-5 h-5 mr-3 text-blue-400" />
-                                {provider.social.facebook}
-                            </Button>
-                        </CardContent>
-                    </Card>
+                    {(provider.social.instagram || provider.social.facebook) && (
+                        <Card className="ls-glass border-white/5 bg-black/40">
+                            <CardHeader className="border-b border-white/5 pb-4">
+                                <CardTitle className="font-outfit text-white text-xl">Redes Sociales</CardTitle>
+                            </CardHeader>
+                            <CardContent className="flex gap-2 pt-6">
+                                {provider.social.instagram && (
+                                    <a href={provider.social.instagram.startsWith('http') ? provider.social.instagram : `https://instagram.com/${provider.social.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border border-pink-500/30 bg-pink-500/5 hover:bg-pink-500/20 hover:scale-105 hover:shadow-[0_0_15px_rgba(236,72,153,0.3)] transition-all group overflow-hidden">
+                                        <Instagram className="h-5 w-5 text-pink-400 group-hover:scale-110 transition-transform shrink-0" />
+                                        <span className="text-sm font-medium text-pink-400 truncate hidden sm:block">Instagram</span>
+                                    </a>
+                                )}
+                                {provider.social.facebook && (
+                                    <a href={provider.social.facebook.startsWith('http') ? provider.social.facebook : `https://facebook.com/${provider.social.facebook}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 p-3 rounded-xl border border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/20 hover:scale-105 hover:shadow-[0_0_15px_rgba(59,130,246,0.3)] transition-all group overflow-hidden">
+                                        <Facebook className="h-5 w-5 text-blue-400 group-hover:scale-110 transition-transform shrink-0" />
+                                        <span className="text-sm font-medium text-blue-400 truncate hidden sm:block">Facebook</span>
+                                    </a>
+                                )}
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
             </div>
         </div>

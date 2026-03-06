@@ -23,8 +23,12 @@ export default async function AdminLayout({
     // I will leave it open for now as I don't want to lock the user out.
 
     return (
-        <div className="flex flex-col min-h-screen">
-            <div className="flex-1 bg-muted/40 p-4 md:p-8">
+        <div className="flex flex-col min-h-screen bg-[#0a0515] text-slate-200 relative overflow-hidden">
+            {/* Subtle background glow */}
+            <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-purple-900/10 blur-[120px] rounded-full pointer-events-none" />
+            <div className="absolute bottom-[-10%] left-[-5%] w-[600px] h-[600px] bg-indigo-900/10 blur-[120px] rounded-full pointer-events-none" />
+
+            <div className="flex-1 p-4 md:p-8 z-10">
                 {children}
             </div>
         </div>
