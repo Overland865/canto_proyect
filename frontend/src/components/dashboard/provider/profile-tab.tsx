@@ -219,7 +219,6 @@ export function ProfileTab() {
             }
 
             toast.success("Perfil guardado exitosamente")
-
             // Success toast is handled by updateProfile unless there's an error
         } catch (error: any) {
             console.error("Error saving profile:", JSON.stringify(error))
