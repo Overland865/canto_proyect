@@ -5,6 +5,9 @@ export interface ProfileUpdate {
     phone?: string
     website?: string
     avatar_url?: string
+    cover_image?: string
+    gallery?: string[]
+    social_media?: any
 }
 
 export interface ReviewData {

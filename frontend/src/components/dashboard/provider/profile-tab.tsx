@@ -190,10 +190,14 @@ export function ProfileTab() {
             const profileData = {
                 full_name: `${formData.name} ${formData.lastname}`.trim(),
                 phone: formData.phone,
+                website: formData.website,
                 avatar_url: formData.avatar_url,
+                cover_image: formData.cover_image,
+                gallery: formData.gallery,
+                social_media: formData.social_media
             }
 
-            await updateProfile(profileData)
+            await updateProfile(profileData as any)
 
             // 2. Provider Profile Fields (provider_profiles table)
             const providerProfileData = {
@@ -202,8 +206,8 @@ export function ProfileTab() {
                 contact_website: formData.website,
                 description: formData.description,
                 location: formData.region,
-                social_media: formData.social_media,
-                logo_url: formData.cover_image || null,
+                social_instagram: formData.social_media.instagram || null,
+                social_facebook: formData.social_media.facebook || null,
                 gallery_images: formData.gallery
             }
 
