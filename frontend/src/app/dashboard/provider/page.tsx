@@ -121,10 +121,10 @@ export default function ProviderDashboardPage() {
             {/* ── Tabs ──────────────────────────────────────── */}
             <Tabs defaultValue="overview" className="space-y-6">
                 <TabsList
-                    className="w-full md:w-auto h-auto grid grid-cols-2 md:grid-cols-3 lg:inline-flex flex-wrap gap-1 p-1.5 rounded-2xl border"
+                    className="w-full md:w-auto h-auto grid grid-cols-2 md:grid-cols-3 lg:inline-flex flex-wrap gap-1 p-1.5 rounded-2xl border bg-transparent"
                     style={{
-                        background: "rgba(255,255,255,0.04)",
                         borderColor: "rgba(255,255,255,0.08)",
+                        background: "rgba(255,255,255,0.04)",
                     }}
                 >
                     {[
@@ -138,12 +138,9 @@ export default function ProviderDashboardPage() {
                         <TabsTrigger
                             key={tab.value}
                             value={tab.value}
-                            className="rounded-xl px-5 py-2 text-sm font-outfit font-semibold text-white/50 transition-all duration-200
-                                data-[state=active]:text-white data-[state=active]:shadow-md"
-                            style={{
-                                // Active state via CSS custom property injection via inline var isn't possible in Tailwind,
-                                // so we use a data-attribute selector defined below via a <style> tag approach, handled by the CSS class.
-                            }}
+                            className="rounded-xl px-5 py-2 text-sm font-outfit font-semibold transition-all duration-200
+                                text-white/50 hover:text-white/80
+                                data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-[0_0_12px_rgba(0,250,255,0.15)] data-[state=active]:border data-[state=active]:border-ls-cyan/30"
                         >
                             {tab.label}
                         </TabsTrigger>

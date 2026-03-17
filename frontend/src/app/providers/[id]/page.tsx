@@ -239,7 +239,7 @@ export default async function ProviderDetailsPage({ params }: { params: Promise<
                             <CardContent className="space-y-4 pt-6">
                                 <div className="grid grid-cols-1 gap-4">
                                     {provider.contact.phone && (
-                                        <div className="flex items-center gap-3 p-3 border border-indigo-500/20 bg-[#1a103c]/30 rounded-lg group hover:border-indigo-400/30 transition-all cursor-pointer overflow-hidden" onClick={() => window.location.href = `tel:${provider.contact.phone}`}>
+                                        <a href={`tel:${provider.contact.phone}`} className="flex items-center gap-3 p-3 border border-indigo-500/20 bg-[#1a103c]/30 rounded-lg group hover:border-indigo-400/30 transition-all cursor-pointer overflow-hidden">
                                             <div className="h-10 w-10 shrink-0 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 group-hover:bg-blue-500/30 group-hover:scale-110 transition-all">
                                                 <Phone className="h-5 w-5" />
                                             </div>
@@ -247,10 +247,10 @@ export default async function ProviderDetailsPage({ params }: { params: Promise<
                                                 <p className="text-xs text-slate-400">Teléfono</p>
                                                 <p className="text-sm font-medium text-slate-200 group-hover:text-blue-300 transition-colors">{provider.contact.phone}</p>
                                             </div>
-                                        </div>
+                                        </a>
                                     )}
                                     {provider.contact.email && (
-                                        <div className="flex items-center gap-3 p-3 border border-indigo-500/20 bg-[#1a103c]/30 rounded-lg group hover:border-indigo-400/30 transition-all cursor-pointer overflow-hidden" onClick={() => window.location.href = `mailto:${provider.contact.email}`}>
+                                        <a href={`mailto:${provider.contact.email}`} className="flex items-center gap-3 p-3 border border-indigo-500/20 bg-[#1a103c]/30 rounded-lg group hover:border-indigo-400/30 transition-all cursor-pointer overflow-hidden">
                                             <div className="h-10 w-10 shrink-0 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500/30 group-hover:scale-110 transition-all">
                                                 <Mail className="h-5 w-5" />
                                             </div>
@@ -258,7 +258,7 @@ export default async function ProviderDetailsPage({ params }: { params: Promise<
                                                 <p className="text-xs text-slate-400">Email negocio</p>
                                                 <p className="text-sm font-medium text-slate-200 truncate group-hover:text-indigo-300 transition-colors">{provider.contact.email}</p>
                                             </div>
-                                        </div>
+                                        </a>
                                     )}
                                     {provider.contact.website && (
                                         <div className="flex items-center gap-3 p-3 border border-indigo-500/20 bg-[#1a103c]/30 rounded-lg col-span-full group hover:border-indigo-400/30 transition-all overflow-hidden">

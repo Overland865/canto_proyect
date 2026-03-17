@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import React, { useState, useEffect } from "react"
 import { useAuth } from "@/context/auth-context"
@@ -84,14 +84,14 @@ export function ProfileTab() {
                     setFormData({
                         name: name,
                         lastname: lastname,
-                        region: "",
+                        region: providerProfile?.location || "",
                         description: providerProfile?.description || "",
                         phone: providerProfile?.contact_phone || profile?.phone || "",
-                        website: "",
-                        social_media: providerProfile?.social_media || { instagram: "", facebook: "", tiktok: "" },
+                        website: profile?.website || providerProfile?.contact_website || "",
+                        social_media: providerProfile?.social_media || profile?.social_media || { instagram: "", facebook: "", tiktok: "" },
                         avatar_url: profile?.avatar_url || "",
-                        cover_image: providerProfile?.logo_url || "",
-                        gallery: []
+                        cover_image: profile?.cover_image || providerProfile?.logo_url || "",
+                        gallery: profile?.gallery || providerProfile?.gallery_images || []
                     })
                 }
 
@@ -190,18 +190,25 @@ export function ProfileTab() {
             const profileData = {
                 full_name: `${formData.name} ${formData.lastname}`.trim(),
                 phone: formData.phone,
+                website: formData.website,
                 avatar_url: formData.avatar_url,
+                cover_image: formData.cover_image,
+                gallery: formData.gallery,
+                social_media: formData.social_media
             }
 
-            await updateProfile(profileData)
+            await updateProfile(profileData as any)
 
             // 2. Provider Profile Fields (provider_profiles table)
             const providerProfileData = {
                 business_name: businessName,
                 contact_phone: formData.phone,
+                contact_website: formData.website,
                 description: formData.description,
-                social_media: formData.social_media,
-                logo_url: formData.cover_image || null
+                location: formData.region,
+                social_instagram: formData.social_media.instagram || null,
+                social_facebook: formData.social_media.facebook || null,
+                gallery_images: formData.gallery
             }
 
             const { error: providerError } = await supabase
@@ -211,9 +218,11 @@ export function ProfileTab() {
 
             if (providerError) {
                 console.error("Provider profile update error:", providerError)
-                toast.warning("El perfil base se actualizó, pero hubo un error con los datos de proveedor.")
+                toast.warning(`Error proveedor: ${providerError.message || 'Desconocido'}`)
+                return // Prevent success if half of it failed
             }
 
+            toast.success("Perfil guardado exitosamente")
             // Success toast is handled by updateProfile unless there's an error
         } catch (error: any) {
             console.error("Error saving profile:", JSON.stringify(error))
@@ -235,63 +244,70 @@ export function ProfileTab() {
         <div className="container max-w-4xl py-8 space-y-8">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Perfil</h1>
-                    <p className="text-muted-foreground">Administra tu perfil público y preferencias de cuenta.</p>
+                    <h1 className="ls-title text-3xl tracking-tight">Perfil</h1>
+                    <p className="text-white/50 font-inter text-sm mt-1">Administra tu perfil público y preferencias de cuenta.</p>
                 </div>
-                <Button onClick={handleSave} disabled={isSaving}>
-                    {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                <button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="ls-btn-cta flex items-center gap-2"
+                >
+                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     Guardar Cambios
-                </Button>
+                </button>
             </div>
 
             <Tabs defaultValue="general" className="w-full">
-                <TabsList className="grid w-full grid-cols-4 lg:w-[600px]">
-                    <TabsTrigger value="general">Información</TabsTrigger>
-                    <TabsTrigger value="images">Imágenes</TabsTrigger>
-                    <TabsTrigger value="social">Redes y Contacto</TabsTrigger>
-                    <TabsTrigger value="account">Cuenta</TabsTrigger>
+                <TabsList className="w-full grid grid-cols-4 p-1 rounded-2xl border" style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.08)" }}>
+                    <TabsTrigger value="general" className="rounded-xl text-sm font-outfit font-semibold transition-all duration-200 text-white/50 hover:text-white/80 data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-[0_0_12px_rgba(0,250,255,0.15)] data-[state=active]:border data-[state=active]:border-ls-cyan/30">Información</TabsTrigger>
+                    <TabsTrigger value="images" className="rounded-xl text-sm font-outfit font-semibold transition-all duration-200 text-white/50 hover:text-white/80 data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-[0_0_12px_rgba(0,250,255,0.15)] data-[state=active]:border data-[state=active]:border-ls-cyan/30">Imágenes</TabsTrigger>
+                    <TabsTrigger value="social" className="rounded-xl text-sm font-outfit font-semibold transition-all duration-200 text-white/50 hover:text-white/80 data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-[0_0_12px_rgba(0,250,255,0.15)] data-[state=active]:border data-[state=active]:border-ls-cyan/30">Redes y Contacto</TabsTrigger>
+                    <TabsTrigger value="account" className="rounded-xl text-sm font-outfit font-semibold transition-all duration-200 text-white/50 hover:text-white/80 data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-[0_0_12px_rgba(0,250,255,0.15)] data-[state=active]:border data-[state=active]:border-ls-cyan/30">Cuenta</TabsTrigger>
                 </TabsList>
 
                 {/* --- pestaña GENERAL --- */}
                 <TabsContent value="general" className="space-y-4 py-4">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Información Personal</CardTitle>
-                            <CardDescription>Tus datos básicos de perfil.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
+                    <div className="ls-glass p-6 space-y-4">
+                        <div className="pb-3 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                            <h3 className="ls-title text-sm">Información Personal</h3>
+                            <p className="text-white/35 font-inter text-xs mt-1">Tus datos básicos de perfil.</p>
+                        </div>
+                        <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="firstName">Nombre</Label>
-                                    <Input
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="firstName" className="text-white/60 font-inter text-xs uppercase tracking-wider">Nombre</Label>
+                                    <input
                                         id="firstName"
+                                        className="ls-input"
                                         value={formData.name}
                                         onChange={(e) => handleInputChange('name', e.target.value)}
                                         placeholder="Tu nombre"
                                     />
                                 </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="lastName">Apellidos</Label>
-                                    <Input
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="lastName" className="text-white/60 font-inter text-xs uppercase tracking-wider">Apellidos</Label>
+                                    <input
                                         id="lastName"
+                                        className="ls-input"
                                         value={formData.lastname}
                                         onChange={(e) => handleInputChange('lastname', e.target.value)}
                                         placeholder="Tus apellidos"
                                     />
                                 </div>
                             </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="region">Región / Ubicación</Label>
-                                <Input
+                            <div className="space-y-1.5">
+                                <Label htmlFor="region" className="text-white/60 font-inter text-xs uppercase tracking-wider">Región / Ubicación</Label>
+                                <input
                                     id="region"
+                                    className="ls-input"
                                     value={formData.region}
                                     onChange={(e) => handleInputChange('region', e.target.value)}
                                     placeholder="Ej: CDMX, Monterrey, etc."
                                 />
-                                <p className="text-xs text-muted-foreground">Indica la zona principal donde ofreces tus servicios.</p>
+                                <p className="text-white/35 font-inter text-xs">Indica la zona principal donde ofreces tus servicios.</p>
                             </div>
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
 
                     <div className="ls-glass p-6 space-y-4">
                         <div className="pb-3 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
